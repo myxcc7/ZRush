@@ -171,7 +171,10 @@
   .hud-weapon .lv{color:var(--muted);font-family:var(--mono);font-size:calc(var(--u,1px)*11)}
   .hud-weapon svg{opacity:.9}
   .hud-bottom{
-    position:absolute;bottom:calc(var(--u,1px)*14);left:0;right:0;
+    /* 原来贴在 bottom:14px，正好压在队伍后腿上（队伍锚点 y≈813，后排在 900+）。
+       挪到顶部 HUD 下方：那里前 3.5 秒一定没有门（第一对门要 3.5–4.5 秒才到），
+       而提示本来也只在开场几秒有效。 */
+    position:absolute;top:calc(var(--u,1px)*76);left:0;right:0;
     transition:opacity .9s ease;
     text-align:center;
     font-size:calc(var(--u,1px)*11);
@@ -243,7 +246,7 @@
             <div id="hudFormation">— 无遭遇 —</div>
           </div>
         </div>
-        <div class="hud-bottom" id="hudHint">P2 · 门系统　左右拖动选门 · D 调试</div>
+        <div class="hud-bottom" id="hudHint">P3 · 队伍与丧尸　左右拖动选门 · D 调试</div>
       </div>
 
       <div id="fpsBadge"></div>
@@ -251,20 +254,23 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · P2 门系统</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · P3 队伍与丧尸</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
-          <span>实体 <b id="dbgEnt">0</b></span>
+          <span>战士 <b id="dbgEnt">0</b></span>
+          <span>丧尸 <b id="dbgZom">0</b></span>
           <span>粒子 <b id="dbgAsh">0</b></span>
           <span>DPR <b id="dbgDpr">1</b></span>
           <span id="dbgClampWrap">钳制 <b id="dbgClamp">0</b></span>
         </div>
         <div class="row">
           <span>t <b id="dbgT">0.00</b>s</span>
-          <span>N <b id="dbgN">1</b></span>
-          <span>显示 <b id="dbgShown">1.0</b></span>
-          <span>k <b id="dbgK">1.50</b></span>
+          <span>N <b id="dbgN">5</b></span>
+          <span>显示 <b id="dbgShown">5</b></span>
+          <span>档 <b id="dbgTier">3</b></span>
+          <span>形态 <b id="dbgForm">1</b></span>
+          <span>色 <b id="dbgCol">3</b></span>
           <span>v <b id="dbgV">3.20</b></span>
           <span>走位 <b id="dbgLim">±1.56</b></span>
           <span>距离 <b id="dbgDist">0</b>m</span>
@@ -276,6 +282,12 @@
           <span>右 <b id="dbgGR">—</b></span>
           <span id="dbgAliveWrap">存活峰值 <b id="dbgAlive">0</b></span>
         </div>
+        <div class="row">
+          <span>编队 <b id="dbgWave">—</b></span>
+          <span>波次 <b id="dbgWaveN">0</b></span>
+          <span>队首 z <b id="dbgWaveZ">—</b></span>
+          <span>下一波 <b id="dbgNext">—</b>s</span>
+        </div>
         <table>
           <tr><th>z</th><th>screenY</th><th>1 单位高</th><th>区域</th></tr>
           <tbody id="dbgProj"></tbody>
@@ -286,7 +298,7 @@
         <div>
           <div class="boot-top">
             <div class="tag">末 日 高 架</div>
-            <div class="stage-pill">P2 / 07</div>
+            <div class="stage-pill">P3 / 07</div>
           </div>
           <div class="title-wrap">
             <h1 class="title">Z<span>-</span>RUSH</h1>
@@ -295,8 +307,8 @@
         </div>
         <div class="boot-mid">
           <div>视角 <b>正俯视</b> · 战场占屏 <b>83%</b></div>
-          <div>可走面 <b>5.3 m</b> / 桥面 <b>6 m</b></div>
-          <div>速度 <b>3.2 → 4.4 m/s</b> · 穿屏 <b>3.0 → 2.2 s</b></div>
+          <div>队伍 <b>21 档</b> · 显示上限 <b>40</b> 人</div>
+          <div>丧尸 <b>5 列</b> · 尸潮 / 混编 / 精锐</div>
         </div>
         <div class="boot-bottom">
           <button id="startBtn">进 入 断 桥</button>
@@ -320,19 +332,21 @@
 <script>
 "use strict";
 /* =========================================================================
-   Z-RUSH · 正俯视竖版射击（P0 / P1 / P2 已完成）
+   Z-RUSH · 正俯视竖版射击（P0 / P1 / P2 / P3 已完成）
    -------------------------------------------------------------------------
    P0.1 竖版画布（540×960 逻辑分辨率，等比缩放居中，零依赖）
    P0.2 横屏处理：提示层 + 黑边，永不重排布局
    P0.3 主循环 + dt 钳制（0.05s 上限）+ DPR 适配 + 切后台不跳帧
    P0.4 调试面板：FPS / 实体数 / t / N / k / 当前编队
+   P3.1 队伍三变量分离：count / shown / peakTier
+   P3.2 21 档视觉（3 形态 × 7 色）+ 单向棘轮 + 换挡闪白
+   P3.3 队形：5 列 × 最多 8 排，排距自适应，宽度恒定不越界
+   P3.4 丧尸波：5 列分布、屏外 z=10.5 生成、四阶段接近
+   P3.5 三种编队（尸潮 / 混编 / 精锐）的密度 · 体积 · 绿度差异
+   P3.6 顶部阅读区直接画个体，不做远景剖面
 
    【架构变更 · 取代伪 3D 透视】
    镜头改为**正俯视**：桥面铺满 90% 以上屏宽，世界是平面的、线性滚动的。
-   理由：
-     1. 透视下丧尸在 45m 处只有 8px 高，刷怪必须靠"远景剖面"补偿，很别扭；
-        正俯视下每一只怪从进场到接触都是同样大小，生成逻辑回归简单。
-     2. 透视的远景只有一条窄缝，实际可用面积很小；正俯视把整块屏都用上。
    ========================================================================= */
 
 /* ---------- 常量：与 §4.2 严格一致，不许改 ---------- */
@@ -740,28 +754,44 @@ function drawScene() {
    正俯视剪影，朝画面上方。组成：影子 / 双腿 / 护甲 / 头盔 / 双手持枪。
    三种形态共用骨架，差别在肩宽、头盔、背包 —— 轮廓即可分辨。
    ========================================================================= */
+/* 三种形态共用骨架。肩甲外扩值刻意做小（0 / 1.2 / 2.4px）：
+   列距只有 0.32 m = 27 px，肩甲一外扩超过 3 px，形态 3 就会把 6 列之间的
+   间隙全部吃掉，24 个人连成一整块橙色板子 —— 试过 5 px，结果就是这样。
+   所以**形态负责"轮廓的厚度感"，颜色负责"档位识别"**，两者分工。
+   真正的差别靠背包（形态 3 独有，在后排两侧露出）和头盔形状补足。 */
 const FORM = {
-  1: { w: 15, shoulder: 0,   helmet: "cap",    pack: false, armor: "#5c6b7a" },
-  2: { w: 16, shoulder: 2.5, helmet: "helmet", pack: false, armor: "#6f7d8c" },
-  3: { w: 18, shoulder: 5,   helmet: "heavy",  pack: true,  armor: "#8b96a3" }
+  1: { w: 14, shoulder: 0,   helmet: "cap",    pack: false, armor: "#5c6b7a" },
+  2: { w: 15, shoulder: 1.2, helmet: "helmet", pack: false, armor: "#6f7d8c" },
+  3: { w: 16, shoulder: 2.4, helmet: "heavy",  pack: true,  armor: "#8b96a3" }
 };
 
 function drawSoldier(px, py, form, color, opts) {
   const f = FORM[form] || FORM[1];
   const o = opts || {};
   const team = color || f.armor;
-  // 1.35 而不是 1.65：1.65 时单个战士高 67px，而排间距只有 42px，
-  // 后排整个人压在前排背上，读成一坨。1.35 时 55px，刚好错开。
-  const K = 1.35;
+  /* 缩放由队形人数决定（soldierScale）：5 人时 1.30 很壮，24 人时 0.96。
+     上限 1.30 而不是 1.65 —— 1.65 时单兵 67px，比排距还高，后排整个压
+     在前排背上，读成一坨。 */
+  const K = o.scale == null ? 1.15 : o.scale;
   const w = f.w;
   const walk = Math.sin(o.walk || 0) * 1.8;
+
+  /* --- 配色：整个战士都由 team 色派生，只剩枪和面甲是纯黑 ---
+     P3 第一版把所有布件写死成蓝灰（#344751 / #435a62 / #293d47），
+     结果 7 色档位只在腰腹留了一小块紫色，24 人挤成方阵之后整片读成
+     "深灰色的板子"。21 档视觉的第一前提是**颜色必须占主体面积**，
+     所以腿、臂、背包、头盔、肩甲全部改成 shade(team, x)，
+     深色只留给枪、面甲和描边。 */
+  const T = (x) => shade(team, x);
+  const EDGE = T(.26);
+
   ctx.save();
   ctx.translate(px, py);
   ctx.scale(K, K);
   ctx.translate(-px, -py);
   ctx.lineJoin = "round";
   ctx.lineWidth = 1.1;
-  ctx.strokeStyle = "#263740";
+  ctx.strokeStyle = EDGE;
 
   // 短而柔的接地影；不画人物下方的大黑饼，保持日光场景干净。
   ctx.fillStyle = "rgba(33,53,60,.20)";
@@ -771,99 +801,106 @@ function drawSoldier(px, py, form, color, opts) {
   for (const side of [-1, 1]) {
     const lx = px + side * w * .31;
     const ly = py + 3 + side * walk;
-    ctx.fillStyle = "#344751";
+    // 腿用比护甲深两档的 team 色：浅了会读成"裙子"，纯黑又丢掉阵营色
+    ctx.fillStyle = T(.36);
     roundRect(ctx, lx - 3.5, ly - 5, 7, 14, 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#71858b";
+    ctx.fillStyle = T(.66);
     ctx.fillRect(lx - 3, ly + 1, 6, 3);
-    ctx.fillStyle = "#24343d";
+    ctx.fillStyle = T(.22);
     roundRect(ctx, lx - 3.8, ly + 7, 7.6, 5, 1.5); ctx.fill();
   }
 
-  // 重装背包在队伍后方形成额外的第三层轮廓。
+  // 重装背包：形态 3 独有的身份证。做得比身体宽，在后排两侧露出来，
+  // 外轮廓因此多出一层"方肩"，一眼区别于轻装/战术
   if (f.pack) {
-    ctx.fillStyle = "#435a62";
-    roundRect(ctx, px - w * .61, py + 2, w * 1.22, 12, 3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#82979a";
-    roundRect(ctx, px - w * .38, py + 5, w * .76, 5, 1.5); ctx.fill();
-    ctx.fillStyle = "#31464f";
-    ctx.fillRect(px - w * .45, py + 2, 2, 10);
-    ctx.fillRect(px + w * .45 - 2, py + 2, 2, 10);
+    ctx.fillStyle = T(.30);
+    roundRect(ctx, px - w * .70, py - 1, w * 1.40, 15, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = T(.56);
+    roundRect(ctx, px - w * .44, py + 2, w * .88, 5, 1.5); ctx.fill();
+    ctx.fillStyle = T(.22);
+    ctx.fillRect(px - w * .52, py - 1, 2.2, 13);
+    ctx.fillRect(px + w * .52 - 2.2, py - 1, 2.2, 13);
+    ctx.fillStyle = "rgba(255,255,255,.22)";
+    ctx.fillRect(px - w * .70 + 2, py, w * 1.40 - 4, 1.6);
   }
 
   // 防弹衣：深色包边、阵营色外层、内插板和腰部快拆扣。
-  ctx.fillStyle = "#293d47";
+  ctx.fillStyle = T(.28);
   ctx.beginPath();
   ctx.moveTo(px - w * .68, py - 10); ctx.lineTo(px + w * .68, py - 10);
   ctx.lineTo(px + w * .51, py + 7); ctx.lineTo(px - w * .51, py + 7);
   ctx.closePath(); ctx.fill();
-  ctx.fillStyle = team;
+  ctx.fillStyle = team;                       // 主体 = 阵营色本身
   ctx.beginPath();
-  ctx.moveTo(px - w * .60, py - 9); ctx.lineTo(px + w * .60, py - 9);
-  ctx.lineTo(px + w * .44, py + 5); ctx.lineTo(px - w * .44, py + 5);
+  ctx.moveTo(px - w * .62, py - 9); ctx.lineTo(px + w * .62, py - 9);
+  ctx.lineTo(px + w * .47, py + 5.5); ctx.lineTo(px - w * .47, py + 5.5);
   ctx.closePath(); ctx.fill();
-  ctx.fillStyle = shade(team, .68);
-  roundRect(ctx, px - w * .35, py - 5, w * .7, 10, 2); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.24)";
-  ctx.fillRect(px - w * .48, py - 8, w * .35, 1.8);
-  ctx.fillStyle = "#293d47";
+  // 插板：只压一点点暗，保留 60% 以上的纯色面积
+  ctx.fillStyle = "rgba(0,0,0,.10)";
+  roundRect(ctx, px - w * .30, py - 5, w * .60, 10, 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.26)";
+  ctx.fillRect(px - w * .50, py - 8, w * .40, 1.8);
+  ctx.fillStyle = T(.28);
   ctx.fillRect(px - w * .46, py + 4, w * .92, 3);
-  ctx.fillStyle = "#a7b6b4";
+  ctx.fillStyle = T(.86);
   ctx.fillRect(px - 2, py + 4, 4, 3);
 
   // 肩甲越大，外轮廓越方；轻装则保留圆润小肩。
   for (const side of [-1, 1]) {
     const sw = 5 + f.shoulder;
     const sx = px + side * (w * .58 + f.shoulder * .35) - sw / 2;
-    ctx.fillStyle = shade(team, .82);
+    ctx.fillStyle = T(.84);
     roundRect(ctx, sx, py - 11, sw, 10, f.shoulder ? 1.5 : 3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,.28)";
+    ctx.fillStyle = "rgba(255,255,255,.30)";
     ctx.fillRect(sx + 1, py - 10, Math.max(2, sw - 3), 1.5);
   }
 
   // 枪先画，头盔后画 —— 顺序反过来会变成"头顶插了一根棍子"。
   // 现在头盔压住枪托和机匣后半段，只露出前方枪管，读起来才是"端枪"。
-  // 枪整体向右偏 10 px：抵右肩的姿势。完全居中会跟头盔正面重叠，
+  // 枪整体向右偏 12 px：抵右肩的姿势。完全居中会跟头盔正面重叠，
   // 看起来像从脑子里长出来的；偏到肩外又读不出端着。
   drawWeapon(px + 12, py - 15, o.weapon || "pistol", w, o.gunScale == null ? 1 : o.gunScale);
   // 双臂抓着枪，画在枪上方
-  drawArms(px, py, w);
+  drawArms(px, py, w, team);
 
   // 头盔与面甲不是一颗圆点：外壳、护目条、面罩、顶部识别带分开绘制。
   const hy = py - 16;
   const hw = w * (f.helmet === "heavy" ? .57 : .49);
-  ctx.fillStyle = "#263a44";
+  ctx.fillStyle = EDGE;
   roundRect(ctx, px - hw - 1, hy - w * .51 - 1, hw * 2 + 2, w * .98 + 2, w * .34); ctx.fill();
-  ctx.fillStyle = f.helmet === "heavy" ? "#4b626a" : "#60767c";
+  ctx.fillStyle = f.helmet === "heavy" ? T(.56) : T(.72);
   roundRect(ctx, px - hw, hy - w * .51, hw * 2, w * .98, w * .32); ctx.fill();
-  ctx.fillStyle = "#8da1a3";
-  roundRect(ctx, px - hw + 2, hy - w * .45, hw * .52, 2.2, 1); ctx.fill();
-  ctx.fillStyle = shade(team, 1.02);
+  ctx.fillStyle = "rgba(255,255,255,.34)";
+  roundRect(ctx, px - hw + 2, hy - w * .45, hw * .62, 2.2, 1); ctx.fill();
+  ctx.fillStyle = T(1.06);
   ctx.fillRect(px - 1.8, hy - w * .49, 3.6, w * .38);
-  ctx.fillStyle = "#182b36";
+  // 面甲 + 护目条：这一小块是唯一允许的纯黑，它是"这是一张脸"的落点
+  ctx.fillStyle = "#16232e";
   roundRect(ctx, px - hw + 1, hy - 3.8, hw * 2 - 2, 4.8, 1.5); ctx.fill();
-  ctx.fillStyle = "#81b6bf";
-  ctx.fillRect(px - hw + 3, hy - 3, hw * .62, 1.4);
-  ctx.fillStyle = "#324b54";
+  ctx.fillStyle = "#7fc2cc";
+  ctx.fillRect(px - hw + 3, hy - 3, hw * .58, 1.4);
+  ctx.fillStyle = T(.38);
   roundRect(ctx, px - 4, hy + 2, 8, 5, 1.5); ctx.fill();
 
   ctx.restore();
 }
 
 /* 双臂：从肩膀斜伸到枪身两侧。单独一个函数，方便在"枪之后、头盔之前"插入。 */
-function drawArms(px, py, w) {
+function drawArms(px, py, w, team) {
+  const T = (x) => shade(team, x);
   ctx.save();
-  ctx.strokeStyle = "#263740";
+  ctx.strokeStyle = T(.26);
   ctx.lineWidth = 1.1;
   for (const side of [-1, 1]) {
     ctx.save();
     ctx.translate(px + side * w * .60, py + 1);
     ctx.rotate(side * .18);
-    ctx.fillStyle = "#3d535d";
+    ctx.fillStyle = T(.56);
     roundRect(ctx, -3.8, -8, 7.6, 16, 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#778b8e";
+    ctx.fillStyle = T(.78);
     ctx.fillRect(-3.2, -1, 6.4, 3);
     // 露出的握枪手
-    ctx.fillStyle = "#bdad91";
+    ctx.fillStyle = "#c4b294";
     roundRect(ctx, -3, -10, 6, 4.4, 1.5); ctx.fill();
     ctx.restore();
   }
@@ -900,11 +937,12 @@ function drawWeapon(px, py, type, w, shrink) {
   ctx.fillStyle = "#2e3740";
   ctx.fillRect(px - Wd * .38, py - L * .78, Wd * .76, L * .20);
 
-  // 枪管：从护木一直伸到枪口，比机匣细
-  ctx.fillStyle = "#3a454f";
+  // 枪管：从护木一直伸到枪口，比机匣细。金属色比机匣亮两档，
+  // 否则在 15 px 的战士旁边会被读成"头顶插了一根黑杆"
+  ctx.fillStyle = "#48545f";
   ctx.fillRect(px - Wd * .17, py - L, Wd * .34, L * .26);
-  ctx.fillStyle = "#59656f";
-  ctx.fillRect(px - Wd * .17, py - L, Wd * .12, L * .26);
+  ctx.fillStyle = "#77879a";
+  ctx.fillRect(px - Wd * .17, py - L, Wd * .13, L * .26);
 
   // 弹匣：从机匣下方向后弯出一块，是"这是枪不是棍"的第二重线索
   if (spec.mag) {
@@ -932,13 +970,48 @@ function drawWeapon(px, py, type, w, shrink) {
   }
 }
 
-/* 队伍：P2 起人数是真实变量，但画面还只给一个临时队形（3 列 × 3 排 = 9 人）。
-   正式的 21 档（3 形态 × 7 色，display 上限 40）在 P3 才接入。
-   这里刻意先跑通"人数会变 → 画面会变"这条回路，门才有反馈。 */
+/* =========================================================================
+   P3.1 · 队伍的三个变量必须分开（§6.1）
+   -------------------------------------------------------------------------
+   count    实际人数。可以到几十万，参与一切数值。
+   shown    显示数量，向 count 补间，只用于 HUD 数字滚动（不封顶）。
+   peakTier 视觉档位 1…21，**单向棘轮**——只升不降（§6.1.4）。
+
+   上一版把这三件事混成 Squad.count 一个数，结果一穿 ÷2 门队伍就从
+   紫色退回米白，等于告诉玩家"你这十分钟白玩了"。三变量分开之后
+   才有"剩 5 个紫色老兵"这种正确的叙事。
+   ========================================================================= */
+/* --- 显示上限：24，不是文档最初假设的 40 ---
+   实测（无头 Edge 540×960）：40 人塞进 FORM_W × 1.62 m 的方阵，每人
+   只能分到 20×20 px；而正俯视下战士要 50 px 高才认得出是"端枪的人"。
+   重叠 63% 之后整片糊成一块紫色网格，形态和颜色全部失效——那等于
+   把 21 档视觉系统整个废掉。
+
+   所以 24（6 列 × 4 排）是"既能读出人形、又足够人多"的实测上限。
+   超过 24 之后靠 21 档形态 / 颜色和脉冲特效表达规模，不靠堆人头（§6.1.2）。
+   这条已回写 GAME_DESIGN §6.1.1。 */
+const DRAW_MAX = 24;
+
+/* 21 档 = 3 形态 × 7 色。颜色从米白重新开始，是为了让每次换形态都
+   有一次"又变强了"的台阶感；一路渐变到底会把 21 档糊成一条平滑的线。 */
+const TIER_COLORS = ["#F2E9D8", "#F5D9A8", "#FAC775", "#EF9F27", "#E8703D", "#D9484F", "#A855C8"];
+const TIER_NAMES  = ["米白", "米黄", "暖金", "琥珀", "橙", "朱红", "紫"];
+
+/* 平方根而不是线性：人少时每一分增长都珍贵，人多了之后要爬得更慢。 */
+function visualTier(n) {
+  return clamp(Math.floor(2.0 * Math.sqrt(Math.max(1, n))) - 1, 1, 21);
+}
+const tierForm  = (v) => Math.floor((v - 1) / 7) + 1;              // 1 / 2 / 3
+const tierColor = (v) => TIER_COLORS[clamp((v - 1) % 7, 0, 6)];
+const tierName  = (v) => TIER_NAMES[clamp((v - 1) % 7, 0, 6)];
+
 const Squad = {
   x: 0, targetX: 0,
   count: 5,            // 实际人数。不是 1：m=1 时 +n 恒为 1，第一对门等于没有选择
   shown: 5,            // 显示值，向 count 补间，让数字滚动而不是跳变
+  peakTier: 1,         // 视觉档位棘轮，永不回落
+  flash: 0,            // 换挡闪白剩余秒数
+  pulse: 0,            // 封顶后的人数脉冲（§6.1.3）
   weapon: "pistol", level: 1, k: 1.5, formation: null
 };
 
@@ -949,34 +1022,60 @@ function memberX(dx) {
   return clamp(Squad.x + dx, -lim, lim);
 }
 
-const MAX_DRAW = 8;                      // P2 临时显示上限（4 列 × 2 排），P3 换成 21 档正式队形
-const FORM_COLS = 4;                     // 横向 4 列比纵向 4 排更容易读成"一队人"
-const FORM_ROW_DZ = 0.58;                // 排间距（米）
-const DEMO_STYLE = [
-  { form: 1, color: "#F2E9D8" },
-  { form: 2, color: "#FAC775" },
-  { form: 3, color: "#A855C8" }
-];
+/* =========================================================================
+   P3.3 · 队形：6 列 × 最多 4 排（§6.1.1 / §6.1.5）
+   -------------------------------------------------------------------------
+   为什么宽度锁死在 FORM_W = 1.6 m：
+   走位上限 SQUAD_LIMIT 是由队形宽度反推的（§4.2.2）。队形一宽，
+   上限就得跟着缩，玩家"变强了反而够不到门"。所以加人只加排、不加宽。
 
-/* 队形表：4 列铺满 FORM_W，人多了往后加排（不加宽）。
-   宽度恒定是硬约束（§4.2.2）——宽度一变，走位上限就得重算。
-   返回时按 dz 升序 = 后排先画、前排后画，前面的战士才会挡住后面的腿，
-   否则画面读起来是"一堆并排的头"而不是"一队人"。
-   只有最前排画枪：后排的枪一定会插进前一排的身体，
-   画出来就是一根贯穿整列的黑杆（这个已经踩过一次）。 */
+   为什么是 6 × 4 而不是最初假设的 8 × 5：
+   排距最小 0.44 m（37 px），4 排吃掉 1.32 m；再往后加排，最后排的
+   y 会突破 960。横向 6 列铺满 1.6 m，列距 0.32 m = 27 px，刚好容下
+   14 px 肩宽 + 13 px 间隙。这是"还认得出人形"的极限，再挤就糊成方格。
+
+   实测（无头 Edge 540×960）：8 列 × 5 排 = 40 人时，每人只分到 20×20 px，
+   而正俯视下战士要 50 px 高才读得出"端枪的人"。重叠 63% 之后整片糊成
+   一块紫色网格，形态和颜色全部失效——那等于把 21 档视觉系统整个废掉。
+   所以显示上限从 40 降到 24，这条已回写 GAME_DESIGN §6.1.1。
+   ========================================================================= */
+const FORM_COLS = 6;
+const FORM_ROWS_MAX = 4;                 // 6 × 4 = 24 = DRAW_MAX
+const FORM_GAP_MIN = 0.44;
+const FORM_GAP_MAX = 0.58;
+const FORM_DEPTH = 1.32;                 // 4 排时的总纵深（米）
+
+function formationLayout(shown) {
+  const n = clamp(Math.round(shown), 1, DRAW_MAX);
+  const rows = Math.ceil(n / FORM_COLS);
+  const gap = rows <= 1 ? 0 : clamp(FORM_DEPTH / (rows - 1), FORM_GAP_MIN, FORM_GAP_MAX);
+  // 列距按"实际用到的列数"摊满 FORM_W：5 人时 0.40 m（舒展），6 人起 0.32 m
+  const colGap = FORM_W / Math.max(1, Math.min(n, FORM_COLS) - 1);
+  return { n, rows, gap, colGap };
+}
+
+/* 个体缩放：人越多越小。0.0158 ≈ (1.30 − 0.96) / 21.5。
+   5 个人时战士要显得壮，24 个人时必须给彼此让出空间。
+   这个收缩**不参与任何数值**，只影响绘制。 */
+function soldierScale(n) {
+  return clamp(1.30 - 0.0158 * (n - 5), 0.96, 1.30);
+}
+
+/* 返回时按 dz 升序 = 后排先画、前排后画，前面的战士才会挡住后面的腿，
+   否则画面读起来是"一堆并排的头"而不是"一队人"。 */
 function squadMembers() {
-  const n = clamp(Math.round(Squad.shown), 1, MAX_DRAW);
+  const L = formationLayout(Squad.shown);
   const out = [];
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < L.n; i++) {
     const row = Math.floor(i / FORM_COLS);
     const start = row * FORM_COLS;
-    const inRow = Math.min(FORM_COLS, n - start);
+    const inRow = Math.min(FORM_COLS, L.n - start);
     const col = i - start;
-    const dx = inRow === 1 ? 0 : (col - (inRow - 1) / 2) * (FORM_W / (inRow - 1));
+    const dx = inRow === 1 ? 0 : (col - (inRow - 1) / 2) * L.colGap;
     out.push({
-      dx, dz: -row * FORM_ROW_DZ,
-      form: DEMO_STYLE[i % 3].form, color: DEMO_STYLE[i % 3].color,
-      ph: i * 1.7, gun: row === 0 ? 1 : 0.42
+      dx, dz: -row * L.gap, row, ph: i * 1.7,
+      // 只有前排画全长枪；后排缩成枪口，否则会连成一根贯穿整列的黑杆
+      gun: row === 0 ? 1 : row === 1 ? 0.55 : 0.40
     });
   }
   out.sort((a, b) => a.dz - b.dz);
@@ -984,10 +1083,332 @@ function squadMembers() {
 }
 
 function drawSquad(t) {
-  for (const m of squadMembers()) {
-    const q = project(memberX(m.dx), m.dz);
-    drawSoldier(q.x, q.y, m.form, m.color, { walk: t * 6 + m.ph, weapon: Squad.weapon, gunScale: m.gun });
+  const v = Squad.peakTier;
+  const form = tierForm(v), color = tierColor(v);
+  const mem = squadMembers();
+  if (!mem.length) return;
+  const K = soldierScale(mem.length);
+
+  // 封顶脉冲：N ≥ 121 之后视觉不再变化，只剩整体 1.0 → 1.12 → 1.0（§6.1.3）
+  const pk = Squad.pulse > 0 ? 1 + 0.12 * Math.sin((1 - Squad.pulse / 0.22) * Math.PI) : 1;
+  ctx.save();
+  if (pk !== 1) {
+    const cy = SQUAD_Y - 40;
+    ctx.translate(W / 2, cy); ctx.scale(pk, pk); ctx.translate(-W / 2, -cy);
   }
+
+  for (const m of mem) {
+    const q = project(memberX(m.dx), m.dz);
+    /* 后排淡一点：正俯视没有透视缩放，前后排一样大，深度全靠亮度差建立。
+       亮桥背景下"变淡"等于"变远"（空气透视），比压暗更自然。
+       每排降 10%，4 排时最后排是 70% —— 刚好读成"后面还有人"，但不抢前排。 */
+    ctx.globalAlpha = Math.max(0.66, 1 - m.row * 0.10);
+    drawSoldier(q.x, q.y, form, color, {
+      walk: t * 6 + m.ph, weapon: Squad.weapon, gunScale: m.gun, scale: K
+    });
+  }
+  ctx.globalAlpha = 1;
+
+  // 换挡闪白：形态或颜色跨档的那一瞬，全队刷一层白光。
+  // 不画描边、不画粒子，只画一层覆盖 —— 这一档的意义是"状态变了"，
+  // 不是"被打了一下"，任何实体特效都会误读成受伤。
+  if (Squad.flash > 0) {
+    const a = (Squad.flash / 0.42) * 0.42;
+    const cy = SQUAD_Y - 30;
+    const rg = ctx.createRadialGradient(W / 2, cy, 6, W / 2, cy, 150);
+    rg.addColorStop(0, "rgba(255,255,255," + a.toFixed(3) + ")");
+    rg.addColorStop(.55, "rgba(255,250,232," + (a * .42).toFixed(3) + ")");
+    rg.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, cy - 170, W, 340);
+  }
+  ctx.restore();
+}
+
+/* =========================================================================
+   P3.4 · 丧尸波（§6.4）
+   -------------------------------------------------------------------------
+   丧尸不是障碍物，是**迎面冲过来**的。世界向下滚 + 丧尸自己向上跑，
+   两者相加，所以"逃不掉"，只能选在哪一列撞。
+
+   纵向口径（全部由世界 z 决定，不用屏幕像素）：
+     生成   z = 10.5   → 屏幕 y = −69（完全在画布上方，进画时不突兀）
+     入场   z = 9.68   → y = 0（画面顶端，此时已是完整个体）
+     辨认   z = 9.68→5 → y = 0→393
+     逼近   z = 5→1.5  → y = 393→687
+     接触   z = 1.5→0  → y = 687→813（队伍线）
+
+   正俯视的最大好处在这里兑现：从入场到接触，个体**大小完全不变**，
+   所以不需要远景剖面、不需要距离补偿，也不需要"远处缩成几个像素"。
+   ========================================================================= */
+const ZOMB = {
+  spawnZ: 10.5,
+  colStep: 1.06,                 // 5 列间距（米）。5 列铺 4.24 m = 桥宽 80%（§6.4.2 硬约束）
+  colX: [-2.12, -1.06, 0, 1.06, 2.12],
+  /* 丧尸自身速度只从 0.35 涨到 1.1 m/s。
+     这个数不是"怪跑多快"，而是"辨认窗口有多长"：
+     总接近速度 = SCROLL(3.2→4.4) + 自身速度，所以起步 3.55 m/s，
+     9.68 m 纵深 ⇒ **2.73 秒穿屏**；其中"辨认区"（z 9.68→5，4.68 m）
+     有 1.32 秒 —— 刚好够看清"绿还是红、大还是小"。
+     如果按文档原值 0.6→1.4，总速 3.8，辨认区只剩 1.23 秒，
+     而且一波怪 2.5 秒就全过完，屏幕上会"时有时无"。 */
+  walkMin: 0.35, walkMax: 1.1,
+  /* 个体尺寸比战士大一档（战士肩宽 15×1.0 ≈ 15 px）。
+     26 px 试过三版都失败：那个尺寸下人头只有 9 px，看不见；
+     要把头放大到能看见，头就占了肩宽的 60%，整只读成"一条虫"。
+     **正俯视的丧尸有一个人体比例的下限**，低于它无论怎么画都错。
+     放大到 30 px（头 16、肩 30，比例 0.53）之后，一眼就是"穿着衣服的人"。
+     壮汉 46 px 是普通的 1.5 倍，在 447 px 战场上占一成 —— 这就是
+     §6.4.5"每一个都占半个屏幕"那句话的落地版本。 */
+  w: 30,
+  bigW: 46,
+  /* 配色分工：深色是衣服（肩背 + 整条臂），浅色是皮肤（头 + 手）。
+     这个两级明度比任何轮廓细节都重要 —— 它让"一坨绿"在 26 px 下
+     直接被读成"一个穿着衣服的人"，而不是乌龟或甲虫。 */
+  cBody: "#4E6B3E", cDark: "#2E4522", cLight: "#8CA474",     // 深绿军装 + 中浅绿皮肤
+  bBody: "#7A3228", bDark: "#48190F", bLight: "#B87C6A"      // 暗红 + 浅红皮肤
+};
+
+/* 三种编队：总战斗力可以相同，构成完全不同（§6.4.5）。
+   识别红线——**密度、体积、绿度必须有两项以上一眼可辨**。
+   所以这里不是"数量不同"，是三个维度一起变：
+     尸潮  24 只小的、挤满、几乎全绿
+     混编  14 只，其中 3 只是宽 1.6 倍的暗红壮汉
+     精锐   6 只全是壮汉，间距大到能看清每一只
+   任何"绿红各半、大小差不多"的组合都被禁止，那种波等于没有编队。 */
+const FORMATIONS = {
+  horde: { name: "尸潮", perCol: [4, 5, 6, 5, 4], bigs: 0, zGap: 0.62, total: 24 },
+  mixed: { name: "混编", perCol: [2, 3, 4, 3, 2], bigs: 3, zGap: 0.74, total: 14 },
+  elite: { name: "精锐", perCol: [1, 1, 2, 1, 1], bigs: 99, zGap: 1.15, total: 6 }
+};
+
+let zombies = [];               // 场上全部丧尸
+let waveTimer = 0;              // 距下一波的秒数
+let waveCount = 0;
+let curFormation = "horde";
+let lastFormation = null, formStreak = 0;
+
+function waveGap() {
+  /* 一波丧尸从入场到全部越过接触线约 2.7 秒。间隔 4.2 → 3.2 秒，
+     意味着屏幕在 64% → 84% 的时间里都有怪 —— "时有时无"的节奏会让
+     玩家以为怪是随机事件，而它应该是持续的压迫。
+     不能更密：低于 3.2 秒时两波会在同一列叠在身上，读成一只。 */
+  return clamp(4.2 - simT * 0.004, 3.2, 4.2);
+}
+
+/* 编队轮换：同类最多连续 2 次（§6.4.5）。
+   没有这个上限，纯随机会出现"连着五波精锐"，玩家把枪换成狙击就一路无脑推。 */
+function pickFormation(t) {
+  if (t < 60) return "horde";                       // 教学期：枪是手枪，正好最平庸
+  const pool = t < 150 ? ["mixed", "mixed", "horde"]
+                       : ["horde", "mixed", "elite"];
+  let f = pool[(Math.random() * pool.length) | 0];
+  if (f === lastFormation && formStreak >= 2) {
+    const alt = pool.filter((x) => x !== f);
+    f = alt[(Math.random() * alt.length) | 0];
+  }
+  formStreak = f === lastFormation ? formStreak + 1 : 1;
+  lastFormation = f;
+  return f;
+}
+
+function spawnWave() {
+  const key = pickFormation(simT);
+  const spec = FORMATIONS[key];
+  curFormation = key;
+  waveCount++;
+
+  const list = [];
+  for (let c = 0; c < ZOMB.colX.length; c++) {
+    const cnt = spec.perCol[c];
+    for (let k = 0; k < cnt; k++) {
+      // 列内纵向错落：同一波的怪不是一排齐步走，而是前后拉开 0.6–1.2 m。
+      // 这样"接触"是从前往后连续发生的，而不是一整排同时消失（§6.4.3）。
+      const z = ZOMB.spawnZ + (k - (cnt - 1) / 2) * spec.zGap + rand(-0.16, 0.16);
+      list.push({
+        col: c,
+        x: ZOMB.colX[c] + rand(-0.16, 0.16),
+        z,
+        big: false,
+        ph: rand(0, 6.28),
+        hit: 0,
+        dead: false
+      });
+    }
+  }
+
+  // 壮汉分配：精锐全壮汉；混编在绿点里随机挑 3 个升成暗红宽块
+  if (spec.bigs > 0) {
+    const idx = list.map((_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [idx[i], idx[j]] = [idx[j], idx[i]]; }
+    const take = Math.min(spec.bigs, idx.length);
+    for (let i = 0; i < take; i++) list[idx[i]].big = true;
+  }
+
+  // 精锐要稀疏：壮汉之间再拉开一点，避免两只挤在同一格读成一只
+  if (key === "elite") for (const z of list) z.z += rand(-0.5, 0.5);
+
+  zombies = zombies.concat(list);
+  return key;
+}
+
+function updateZombies(dt) {
+  waveTimer -= dt;
+  if (waveTimer <= 0) {
+    spawnWave();
+    waveTimer = waveGap();
+  }
+
+  // 丧尸自身速度随时间 0.6 → 1.4 m/s，叠加世界滚动（§7.1）
+  const selfSpeed = ZOMB.walkMin + Math.min(simT / 60, 1) * (ZOMB.walkMax - ZOMB.walkMin);
+  const advance = (SCROLL + selfSpeed) * dt;
+
+  for (let i = zombies.length - 1; i >= 0; i--) {
+    const zb = zombies[i];
+    zb.z -= advance;
+    // 壮汉摇晃更慢 —— 视觉上就"重"（§10.5）
+    zb.ph += dt * (zb.big ? 2.1 : 3.4);
+    if (zb.hit > 0) zb.hit -= dt;
+    // 接触后继续向画面下方跑出：P3 还不结算人数（P4 接真实战斗）
+    if (zb.z < -1.6) zombies.splice(i, 1);
+  }
+}
+
+/* ---------- 单只丧尸：正俯视，正面朝下（朝玩家） ----------
+   俯视下能看到的人体结构只有三样：**肩背、头、张开的双手**。
+   腿和脚被身体完全挡住 —— 试过在身后画一对小脚，结果在俯视下读成
+   "头顶长了两只兔子耳朵"，整只立刻变成动物。所以本版不画脚。
+
+   真正让轮廓立起来的不是形状，是**两级明度**：
+     深色（军装 / 烂衣服）→ 肩背 + 整条手臂
+     浅色（皮肤）        → 头 + 双手
+   只靠形状，"宽扁椭圆 + 圆"在 26 px 下永远像乌龟或螃蟹；
+   加上"深肩浅头"，大脑立刻把它切成"一个穿着衣服的人"。
+
+   头必须**完全压出肩背轮廓**（中心在肩背前缘，直径 ≈ 0.66 肩宽），
+   否则俯视下头会淹没在肩里，只剩一个色块。 */
+function drawZombie(px, py, zb) {
+  const big = zb.big;
+  const bodyW = big ? ZOMB.bigW : ZOMB.w;
+  const headR = bodyW * 0.26;
+  const sway = Math.sin(zb.ph) * (big ? 0.09 : 0.15);
+  // 逼近度 0→1：z 从 5 掉到 1.5 时手臂完全张开
+  const lean = clamp((5 - zb.z) / 3.5, 0, 1);
+  const spread = bodyW * (0.78 + lean * 0.22);   // 手明显落在肩外，别贴着脑袋
+  const fwd = bodyW * (0.06 + lean * 0.16);      // 手落在身体两侧，比头靠后
+
+  const body  = big ? ZOMB.bBody  : ZOMB.cBody;   // 深色：衣服
+  const dark  = big ? ZOMB.bDark  : ZOMB.cDark;
+  const skin  = big ? ZOMB.bLight : ZOMB.cLight;  // 浅色：皮肤
+
+  ctx.save();
+  /* 上下两端都淡出：
+     顶端 —— 从画布上方进场时不要"啪"地出现（HUD 也压在那里）；
+     底端 —— 越过接触线之后快速淡掉。
+     P3 还不扣人（战斗在 P4），但"跑过去了就不该还在"这条必须现在就对。 */
+  ctx.globalAlpha = clamp((py + 46) / 56, 0, 1) * clamp((0.9 + zb.z) / 0.9, 0, 1);
+  ctx.translate(px, py);
+
+  /* 扑倒：z 从 1.2 掉到 0 的最后 0.33 秒，整体压扁并向前摊开。
+     §6.4.3 要求"丧尸向前扑倒，不是向后倒——它们是冲过来的"。
+     P3 没有战斗结算，但**这一下形变必须现在就有**：
+     否则玩家看到的是"丧尸从队伍身上穿过去"，读起来像一个穿模 bug，
+     而不是"它扑上来了"。P4 接入 `Combat` 后只往这里加结算和时间轴。 */
+  const fall = clamp((1.2 - zb.z) / 1.2, 0, 1);
+  if (fall > 0) {
+    ctx.translate(0, bodyW * .10 * fall);
+    ctx.scale(1 + fall * .30, 1 - fall * .58);
+  }
+  ctx.rotate(sway);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  // 接地影：比战士的更大更软
+  ctx.fillStyle = "rgba(33,53,60,.22)";
+  ctx.beginPath(); ctx.ellipse(3, bodyW * .08, bodyW * .86, bodyW * .40, 0, 0, 6.283); ctx.fill();
+
+  // 双臂：深色，从肩外缘向两侧张开。手落在身体两侧、头的**后面** ——
+  // 手如果比头还靠前，头就被夹在两只手中间，整只读成"一条虫"。
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = big ? 10 : 6.2;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(s * bodyW * .28, -bodyW * .16);
+    ctx.quadraticCurveTo(s * spread * 1.02, -bodyW * .10, s * spread, fwd);
+    ctx.stroke();
+  }
+
+  // 肩背：深色横向宽扁椭圆。宽 > 高，才像"肩"而不是"球"
+  ctx.fillStyle = body;
+  ctx.beginPath(); ctx.ellipse(0, -bodyW * .20, bodyW * .46, bodyW * .33, 0, 0, 6.283); ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = 2; ctx.stroke();
+  // 肩线：一条稍亮的横弧，把"一块色"变成"一副肩膀"
+  ctx.strokeStyle = "rgba(255,255,255,.16)";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.ellipse(0, -bodyW * .20, bodyW * .34, bodyW * .24, 0, Math.PI * 1.12, Math.PI * 1.88); ctx.stroke();
+
+  /* 躯干：从肩背一直延伸到头的后方。没有这一条，肩背和头就是两个
+     互不相连的圆，"上下叠两个椭圆"是昆虫的结构，不是人的结构。
+     有了它，轮廓才从"后肩 → 后背 → 前胸 → 头"连成一条纵深。 */
+  ctx.fillStyle = body;
+  roundRect(ctx, -bodyW * .24, -bodyW * .22, bodyW * .48, bodyW * .52, bodyW * .18);
+  ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = 2; ctx.stroke();
+
+  // 手掌：浅色（皮肤），落在臂端外侧
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = skin;
+    ctx.beginPath(); ctx.ellipse(s * spread, fwd, big ? 4.6 : 3.5, big ? 3.9 : 2.9, s * .3, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = dark; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+
+  /* 头：浅色（皮肤），画在**最前方**，比双手更靠下。
+     **张开的嘴是这个角色能不能被认出来的最后一块拼图。**
+     只有一个圆头的时候，它和"青蛙""甲虫""乌龟"完全无法区分；
+     加了一张朝前的深色嘴 + 两点牙，大脑立刻把它读成"正朝我扑过来的人"。
+     这是本作唯一一处允许画表情的地方，因为它是"威胁方向"的唯一载体。 */
+  const hy = bodyW * .34;
+  ctx.fillStyle = skin;
+  ctx.beginPath(); ctx.ellipse(0, hy, headR, headR * 1.06, 0, 0, 6.283); ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = 2; ctx.stroke();
+  // 嘴：朝前（+y），深色椭圆
+  ctx.fillStyle = "#2A1A14";
+  ctx.beginPath(); ctx.ellipse(0, hy + headR * .44, headR * .44, headR * .30, 0, 0, 6.283); ctx.fill();
+  // 两点牙：极小，但在亮桥上是"这是丧尸"最经济的符号
+  ctx.fillStyle = "#F2EBDC";
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.arc(s * headR * .17, hy + headR * .34, headR * .10, 0, 6.283); ctx.fill();
+  }
+  // 伤口：头侧一小块暗斑 + 一点血红
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.ellipse(headR * .46, hy - headR * .30, headR * .28, headR * .20, .6, 0, 6.283); ctx.fill();
+  ctx.fillStyle = "rgba(150,40,44,.55)";
+  ctx.beginPath(); ctx.ellipse(-headR * .40, hy + headR * .06, headR * .24, headR * .13, -.3, 0, 6.283); ctx.fill();
+  // 头顶高光：亮色在左上，和整个场景的光向一致
+  ctx.fillStyle = "rgba(255,255,255,.26)";
+  ctx.beginPath(); ctx.ellipse(-headR * .34, hy - headR * .46, headR * .28, headR * .14, -.4, 0, 6.283); ctx.fill();
+
+  ctx.restore();
+}
+
+/* zMin / zMax 用来把一波丧尸切成"门后"和"门前"两段，交给 render 交错绘制 */
+function drawZombies(zMin, zMax) {
+  if (!zombies.length) return;
+  // 远的先画、近的后画：近的压住远的，才有"一层层压过来"的厚度
+  const list = zombies.slice().sort((a, b) => b.z - a.z);
+  for (const zb of list) {
+    if (zb.z > 10.2 || zb.z < -1.7) continue;    // 屏外不画（§6.4.6）
+    if (zb.z >= zMax || zb.z < zMin) continue;
+    const p = project(zb.x, zb.z);
+    drawZombie(p.x, p.y, zb);
+  }
+}
+
+/* 队首丧尸的 z：HUD 和调试用，读"最近的威胁还有多远" */
+function leadZombieZ() {
+  let m = Infinity;
+  for (const zb of zombies) if (zb.z > 0 && zb.z < m) m = zb.z;
+  return m === Infinity ? null : m;
 }
 
 /* =========================================================================
@@ -1077,8 +1498,9 @@ function resolvePair() {
           : null;
 
   if (!g) {
-    // 从缝里穿过：不是 bug，是"你看错了"的代价
-    addFloater("错过", W / 2, SQUAD_Y - 60, "#8a99a4", 26);
+    // 从缝里穿过：不是 bug，是"你看错了"的代价。
+    // 颜色要用深灰：亮色桥面上浅灰字会糊成一块，看不清到底发生了什么
+    addFloater("错过", W / 2, SQUAD_Y - 60, "#5C6C79", 26);
     return;
   }
 
@@ -1092,6 +1514,7 @@ function resolvePair() {
   burst(cx, SQUAD_Y - 24, color, 26);
   addFloater(label, cx, SQUAD_Y - 56, color, 40);
   addFloater((after >= before ? "+" : "") + (after - before), cx, SQUAD_Y - 104, "#ffffff", 30);
+  Squad.pulse = 0.22;                // 队伍整体弹一下：确认"这一脚真的算数了"
   hudBump();
 }
 
@@ -1135,6 +1558,11 @@ function updateGates(dt) {
 function drawGate(g, side, z, alpha) {
   const cx = side * GATE.cx;
   const p = project(cx, z);
+  /* 顶部让位：门从画面顶端进场时，左上角的人数卡正好压着左门的左边。
+     P2 把卡片缩到 119 px 只是让"数字中心"漏出来，门框本身还是被切掉一块。
+     这里让门在 y < 84 的区间按高度淡入 —— 视觉上读成"从雾里显形"，
+     既解决了遮挡，又比"凭空出现在半屏"自然。 */
+  alpha *= clamp((p.y - 4) / 80, 0, 1);
   const hw = GATE.w / 2 * PPM;
   const hh = GATE.d / 2 * PPM;
   const x0 = p.x - hw, y0 = p.y - hh, wpx = hw * 2, hpx = hh * 2;
@@ -1335,9 +1763,24 @@ function loop(now) {
 function update(dt) {
   Squad.x = lerp(Squad.x, Squad.targetX, 1 - Math.pow(1 - 0.35, dt * 60));
   Squad.x = clamp(Squad.x, -SQUAD_LIMIT, SQUAD_LIMIT);
-  // 显示值向实际人数补间：门一穿过，HUD 数字要"滚"上去，不能瞬间跳
-  Squad.shown = lerp(Squad.shown, Squad.count, 1 - Math.pow(1 - 0.14, dt * 60));
-  if (Math.abs(Squad.shown - Squad.count) < 0.02) Squad.shown = Squad.count;
+
+  /* 显示值向实际人数补间：门一穿过，HUD 数字要"滚"上去，不能瞬间跳。
+     shown 本身不封顶（它是 HUD 的数字来源），队形在 formationLayout 内部
+     自己 clamp 到 DRAW_MAX。两件事混在一起写，就会出现"人数显示卡在 24"。 */
+  const shownTarget = Squad.count;
+  Squad.shown = lerp(Squad.shown, shownTarget, 1 - Math.pow(1 - 0.14, dt * 60));
+  if (Math.abs(Squad.shown - shownTarget) < 0.02) Squad.shown = shownTarget;
+
+  /* P3.2 档位棘轮：只升不降（§6.1.4）。
+     跨档那一帧挂一次闪白；数值回落后 peakTier 保持不动 ——
+     "剩 5 个紫色的幸存者"比"退回米白平民"更有叙事价值。 */
+  const wantTier = visualTier(Squad.count);
+  if (wantTier > Squad.peakTier) {
+    Squad.peakTier = wantTier;
+    Squad.flash = 0.42;
+  }
+  if (Squad.flash > 0) Squad.flash = Math.max(0, Squad.flash - dt);
+  if (Squad.pulse > 0) Squad.pulse = Math.max(0, Squad.pulse - dt);
 
   // P1.6：滚动速度由时间曲线驱动，速度只改变"东西多快过去"，不改 PPM
   SCROLL = speedAt(simT);
@@ -1347,13 +1790,22 @@ function update(dt) {
 
   if (phase === "PLAY") {
     updateGates(dt);
+    updateZombies(dt);
     updateFx(dt);
   }
 }
 
 function render() {
   drawScene();
-  if (phase === "PLAY") drawGates();
+  if (phase === "PLAY") {
+    /* 丧尸与门要按 z 交错绘制：门是一层半透明光幕，如果一律画在丧尸上面，
+       门从画面顶端滚下来的那两秒会把正在辨认的尸潮整片盖掉。
+       这里以门的 z 为界，远的先画、近的后画，门永远夹在中间。 */
+    const gz = pair ? pair.z : -99;
+    drawZombies(gz, 99);
+    drawGates();
+    drawZombies(-99, gz);
+  }
   drawSquad(simT);
   drawAsh();
   if (phase === "PLAY") drawFx();
@@ -1422,7 +1874,8 @@ function updateDebug() {
   $("dbgFps").textContent = fps;
   $("dbgFps").className = fps >= 55 ? "" : "warn";
   $("dbgMs").textContent = frameMs.toFixed(1);
-  $("dbgEnt").textContent = ASH_N + squadMembers().length + (pair ? 2 : 0);
+  $("dbgEnt").textContent = squadMembers().length + " / " + Math.min(Math.round(Squad.shown), DRAW_MAX);
+  $("dbgZom").textContent = zombies.length;
   $("dbgAsh").textContent = ASH_N + parts.length;
   $("dbgDpr").textContent = View.dpr;
   $("dbgClamp").textContent = clamps;
@@ -1430,7 +1883,9 @@ function updateDebug() {
   $("dbgT").textContent = simT.toFixed(2);
   $("dbgN").textContent = abbr(Squad.count);
   $("dbgShown").textContent = Math.round(Squad.shown);
-  $("dbgK").textContent = Squad.k.toFixed(2);
+  $("dbgTier").textContent = Squad.peakTier + "/21";
+  $("dbgForm").textContent = tierForm(Squad.peakTier);
+  $("dbgCol").textContent = tierName(Squad.peakTier);
   $("dbgV").textContent = SCROLL.toFixed(2);
   $("dbgLim").textContent = "±" + SQUAD_LIMIT.toFixed(2);
   $("dbgDist").textContent = scrollM.toFixed(0);
@@ -1441,6 +1896,11 @@ function updateDebug() {
   $("dbgAlive").textContent = pairMaxAlive;
   // 一屏一对门是硬约束：一旦峰值 > 1 就当场标红，不能等到肉眼发现
   $("dbgAliveWrap").className = pairMaxAlive > 1 ? "warn" : "";
+  const lz = leadZombieZ();
+  $("dbgWave").textContent = waveCount ? FORMATIONS[curFormation].name : "—";
+  $("dbgWaveN").textContent = waveCount;
+  $("dbgWaveZ").textContent = lz != null ? lz.toFixed(2) : "—";
+  $("dbgNext").textContent = waveTimer > 0 ? waveTimer.toFixed(1) : "—";
   $("fpsBadge").textContent = fps + " FPS";
 }
 setInterval(updateDebug, 250);
@@ -1484,11 +1944,10 @@ function updateHud() {
   $("hudN").textContent = abbr(Math.round(Squad.shown));
   $("hudDist").textContent = Math.round(scrollM);
   $("hudTime").textContent = mmss(simT);
-  // 右上原来写"— 无遭遇 —"，P2 还没有丧尸，这个占位不如给一个真有用的读数：
-  // 门还有几秒到脚下。P3 接编队后这里改回编队名。
-  $("hudFormation").textContent = pair && !pair.resolved && pair.z > 0
-    ? "门 " + (pair.z / SCROLL).toFixed(1) + "s"
-    : "—";
+  /* 第三行显示当前编队名。P3 的三种编队必须在**文字上**也能确认，
+     否则玩家只能靠数数量猜 —— 而 1.5 秒里没有人能数清 24 只怪。
+     P4 会把这一行升级成"编队 + 我的枪对它够不够"。 */
+  $("hudFormation").textContent = waveCount ? FORMATIONS[curFormation].name : "—";
   // 操作提示只在开场 8 秒内有效：队伍后排在 y≈919，提示正好压在脚上
   $("hudHint").style.opacity = simT > 8 ? "0" : "1";
 }
@@ -1500,6 +1959,11 @@ function startGame() {
   $("hud").classList.add("on");
   updateHudWeapon();
   spawnPair();                       // 第一对门立刻在屏外排好队
+  /* 第一波丧尸延迟 3.2 秒：让玩家先看清第一对门，再让怪进来。
+     两件事同时发生，新手会在"读数字"和"读怪"之间彻底失焦。 */
+  zombies = []; waveCount = 0; curFormation = "horde";
+  lastFormation = null; formStreak = 0;
+  waveTimer = 3.2;
 }
 $("startBtn").addEventListener("click", startGame);
 
@@ -1512,15 +1976,22 @@ requestAnimationFrame((t) => { running = true; last = 0; loop(t); });
 
 // 暴露给后续阶段 / 控制台自检
 window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
-  SQUAD_LIMIT, FORM_W, SQUAD_HALF, MAX_DRAW, GATE,
-  memberX, squadMembers, speedAt, addValue, gateLabel, abbr,
+  SQUAD_LIMIT, FORM_W, SQUAD_HALF, DRAW_MAX, GATE, ZOMB, FORMATIONS,
+  memberX, squadMembers, formationLayout, soldierScale, speedAt, addValue, gateLabel, abbr,
+  visualTier, tierForm, tierColor, tierName,
+  spawnWave, leadZombieZ, pickFormation, waveGap,
   project, groundY, View, Squad, PAL,
+  get zombies() { return zombies; },
+  get waveCount() { return waveCount; },
+  get curFormation() { return curFormation; },
+  get waveTimer() { return waveTimer; },
   get pair() { return pair; },
   get pairCount() { return pairCount; },
   get pairMaxAlive() { return pairMaxAlive; },
   get parts() { return parts; },
   get fps() { return fps; }, get simT() { return simT; }, get clamps() { return clamps; },
   get scrollM() { return scrollM; }, get phase() { return phase; },
+  get frameMs() { return frameMs; },
   applyGate, spawnPair };
 
 </script>

@@ -132,30 +132,34 @@
     background:linear-gradient(to bottom,rgba(24,36,48,.5),rgba(24,36,48,0));
   }
   .hud-left{
-    background:rgba(22,32,42,.62);
-    border:1px solid rgba(242,233,216,.12);
+    /* 门从画面顶端进来时会穿过这一层。卡片做小、做透，
+       否则"×2 vs +46"里左边那个会被人数卡整个吃掉，玩家只能看到一个选项。 */
+    background:rgba(22,32,42,.50);
+    border:1px solid rgba(242,233,216,.10);
     border-radius:calc(var(--u,1px)*9);
-    padding:calc(var(--u,1px)*7) calc(var(--u,1px)*11) calc(var(--u,1px)*8);
-    backdrop-filter:blur(3px);
+    padding:calc(var(--u,1px)*6) calc(var(--u,1px)*9) calc(var(--u,1px)*7);
+    backdrop-filter:blur(2px);
   }
   .hud-count{
+    transition:transform .12s ease;
     font-family:var(--mono);
-    font-size:calc(var(--u,1px)*38);
+    font-size:calc(var(--u,1px)*33);
     font-weight:500;
     line-height:1;
     letter-spacing:calc(var(--u,1px)*-1);
   }
+  .hud-count.hit{transform:scale(1.14)}
   .hud-label{
-    font-size:calc(var(--u,1px)*9);
-    letter-spacing:calc(var(--u,1px)*2.2);
+    font-size:calc(var(--u,1px)*8);
+    letter-spacing:calc(var(--u,1px)*1.8);
     color:var(--muted);
     margin-top:calc(var(--u,1px)*3);
   }
   .hud-right{
-    text-align:right;font-family:var(--mono);font-size:calc(var(--u,1px)*11);line-height:1.7;color:var(--muted);
-    background:rgba(22,32,42,.55);border:1px solid rgba(242,233,216,.1);
+    text-align:right;font-family:var(--mono);font-size:calc(var(--u,1px)*10.5);line-height:1.65;color:var(--muted);
+    background:rgba(22,32,42,.48);border:1px solid rgba(242,233,216,.10);
     border-radius:calc(var(--u,1px)*9);
-    padding:calc(var(--u,1px)*6) calc(var(--u,1px)*10);
+    padding:calc(var(--u,1px)*5) calc(var(--u,1px)*9);
   }
   .hud-right b{color:var(--bone);font-weight:500}
   .hud-weapon{
@@ -168,6 +172,7 @@
   .hud-weapon svg{opacity:.9}
   .hud-bottom{
     position:absolute;bottom:calc(var(--u,1px)*14);left:0;right:0;
+    transition:opacity .9s ease;
     text-align:center;
     font-size:calc(var(--u,1px)*11);
     letter-spacing:calc(var(--u,1px)*2);
@@ -179,21 +184,24 @@
   /* ---------- 调试面板 ---------- */
   #debug{
     position:absolute;left:0;right:0;bottom:0;
-    background:rgba(22,32,42,.92);
+    /* 面板正好压在队伍身上（队伍锚点 y=813）。做纯色会把角色整个糊死，
+       所以留 26% 的透明 + 轻微毛玻璃，既读得清数值，也能看见队伍还在动。 */
+    background:rgba(22,32,42,.74);
+    backdrop-filter:blur(2px);
     border-top:1px solid var(--hairline);
     font-family:var(--mono);
-    font-size:calc(var(--u,1px)*11);
+    font-size:calc(var(--u,1px)*10.5);
     color:var(--muted);
-    padding:calc(var(--u,1px)*10) calc(var(--u,1px)*14) calc(var(--u,1px)*14);
+    padding:calc(var(--u,1px)*8) calc(var(--u,1px)*14) calc(var(--u,1px)*11);
     display:none;
   }
   #debug.on{display:block}
-  #debug .row{display:flex;gap:calc(var(--u,1px)*16);flex-wrap:wrap;line-height:1.9}
+  #debug .row{display:flex;gap:calc(var(--u,1px)*14);flex-wrap:wrap;line-height:1.75}
   #debug .row span b{color:var(--bone);font-weight:400}
   #debug .row.head{justify-content:space-between;margin-bottom:calc(var(--u,1px)*6)}
   #debug .warn{color:var(--pink)}
   #debug table{border-collapse:collapse;margin-top:calc(var(--u,1px)*6);width:100%}
-  #debug td,#debug th{padding:calc(var(--u,1px)*3) calc(var(--u,1px)*6);text-align:center;border-bottom:1px solid rgba(242,233,216,.07);font-weight:400}
+  #debug td,#debug th{padding:calc(var(--u,1px)*2) calc(var(--u,1px)*6);text-align:center;border-bottom:1px solid rgba(242,233,216,.07);font-weight:400}
   #debug th{color:var(--muted)}
   #debug td.proj{color:var(--bone)}
   #dbgToggle{pointer-events:auto;position:absolute;right:calc(var(--u,1px)*18);bottom:calc(var(--u,1px)*18);width:calc(var(--u,1px)*30);height:calc(var(--u,1px)*30);border-radius:50%;border:1px solid var(--hairline);background:rgba(11,14,22,.5);color:var(--muted);cursor:pointer;font-size:calc(var(--u,1px)*13);font-family:var(--mono)}
@@ -225,7 +233,7 @@
       <div id="hud">
         <div class="hud-top">
           <div class="hud-left">
-            <div class="hud-count" id="hudN">1</div>
+            <div class="hud-count" id="hudN">5</div>
             <div class="hud-label">队伍 SURVIVORS</div>
             <div class="hud-weapon" id="hudWeapon"></div>
           </div>
@@ -235,7 +243,7 @@
             <div id="hudFormation">— 无遭遇 —</div>
           </div>
         </div>
-        <div class="hud-bottom">P1 · 跑道与错觉　1/2/3/4 换枪 · D 调试</div>
+        <div class="hud-bottom" id="hudHint">P2 · 门系统　左右拖动选门 · D 调试</div>
       </div>
 
       <div id="fpsBadge"></div>
@@ -243,7 +251,7 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · P1 跑道与错觉</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · P2 门系统</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
@@ -255,11 +263,18 @@
         <div class="row">
           <span>t <b id="dbgT">0.00</b>s</span>
           <span>N <b id="dbgN">1</b></span>
+          <span>显示 <b id="dbgShown">1.0</b></span>
           <span>k <b id="dbgK">1.50</b></span>
-          <span>v <b id="dbgV">10.30</b></span>
+          <span>v <b id="dbgV">3.20</b></span>
           <span>走位 <b id="dbgLim">±1.56</b></span>
           <span>距离 <b id="dbgDist">0</b>m</span>
-          <span>编队 <b id="dbgForm">—</b></span>
+        </div>
+        <div class="row">
+          <span>门组 <b id="dbgPair">0</b></span>
+          <span>门 z <b id="dbgZ">—</b></span>
+          <span>左 <b id="dbgGL">—</b></span>
+          <span>右 <b id="dbgGR">—</b></span>
+          <span id="dbgAliveWrap">存活峰值 <b id="dbgAlive">0</b></span>
         </div>
         <table>
           <tr><th>z</th><th>screenY</th><th>1 单位高</th><th>区域</th></tr>
@@ -271,7 +286,7 @@
         <div>
           <div class="boot-top">
             <div class="tag">末 日 高 架</div>
-            <div class="stage-pill">P1 / 07</div>
+            <div class="stage-pill">P2 / 07</div>
           </div>
           <div class="title-wrap">
             <h1 class="title">Z<span>-</span>RUSH</h1>
@@ -281,11 +296,11 @@
         <div class="boot-mid">
           <div>视角 <b>正俯视</b> · 战场占屏 <b>83%</b></div>
           <div>可走面 <b>5.3 m</b> / 桥面 <b>6 m</b></div>
-          <div>队伍锚点 <b>y = 813</b> · 前向 <b>9.6 m</b></div>
+          <div>速度 <b>3.2 → 4.4 m/s</b> · 穿屏 <b>3.0 → 2.2 s</b></div>
         </div>
         <div class="boot-bottom">
           <button id="startBtn">进 入 断 桥</button>
-          <div class="boot-hint">左右拖动战士 · 1/2/3/4 换枪 · D 调试</div>
+          <div class="boot-hint">左右拖动选门 · D 调试 · 1/2/3/4 换枪预览</div>
         </div>
       </div>
 
@@ -305,7 +320,7 @@
 <script>
 "use strict";
 /* =========================================================================
-   Z-RUSH · P0 工程底座（正俯视版）
+   Z-RUSH · 正俯视竖版射击（P0 / P1 / P2 已完成）
    -------------------------------------------------------------------------
    P0.1 竖版画布（540×960 逻辑分辨率，等比缩放居中，零依赖）
    P0.2 横屏处理：提示层 + 黑边，永不重排布局
@@ -350,8 +365,17 @@ const CAM = { ppm: PPM, squadZ: 1.75 };   // squadZ：队伍后方留给方阵�
 const SQUAD_Y = H - CAM.squadZ * PPM;
 const VIEW_Z = SQUAD_Y / PPM;            // 画面顶端对应的世界 z（约 9.68m）
 
-/* ---------- 速度曲线（§7.1.1）：起步 10.3 m/s，约 4 分 10 秒封顶 19.3 ---------- */
-const V_BASE = 10.3, V_RAMP = 0.036, V_MAX = 19.3;
+/* ---------- 速度曲线（§7.1.1）：按"全屏穿越时间"标定，不按旧透视的米/秒 ----------
+   正俯视的可视纵深只有 9.68 m（y=0 到队伍锚点 813px）。旧的 10.3 → 19.3 m/s
+   是伪 3D 时代按 45 m 纵深算的；直接搬过来，一趟穿越只要 0.94 → 0.50 秒，
+   门上的数字根本来不及读，等于把整局变成反应测试。
+
+   所以速度必须以"几秒穿过一屏"为唯一标准：
+     起步 3.2 m/s → 3.02 秒穿屏
+     封顶 4.4 m/s → 2.20 秒穿屏
+   封顶时间仍是 250 秒（4 分 10 秒），和原文档的时间锚点对齐。
+   2.2 秒是这条的下限：再快就低于"1.5 秒判断 + 0.8 秒读结果"的认知预算。 */
+const V_BASE = 3.2, V_RAMP = 0.0048, V_MAX = 4.4;
 const speedAt = (t) => Math.min(V_BASE + V_RAMP * t, V_MAX);
 let SCROLL = V_BASE;                     // 当前帧的实际滚动速度，update 里按 t 刷新
 
@@ -726,7 +750,9 @@ function drawSoldier(px, py, form, color, opts) {
   const f = FORM[form] || FORM[1];
   const o = opts || {};
   const team = color || f.armor;
-  const K = 1.65;
+  // 1.35 而不是 1.65：1.65 时单个战士高 67px，而排间距只有 42px，
+  // 后排整个人压在前排背上，读成一坨。1.35 时 55px，刚好错开。
+  const K = 1.35;
   const w = f.w;
   const walk = Math.sin(o.walk || 0) * 1.8;
   ctx.save();
@@ -794,6 +820,14 @@ function drawSoldier(px, py, form, color, opts) {
     ctx.fillRect(sx + 1, py - 10, Math.max(2, sw - 3), 1.5);
   }
 
+  // 枪先画，头盔后画 —— 顺序反过来会变成"头顶插了一根棍子"。
+  // 现在头盔压住枪托和机匣后半段，只露出前方枪管，读起来才是"端枪"。
+  // 枪整体向右偏 10 px：抵右肩的姿势。完全居中会跟头盔正面重叠，
+  // 看起来像从脑子里长出来的；偏到肩外又读不出端着。
+  drawWeapon(px + 12, py - 15, o.weapon || "pistol", w, o.gunScale == null ? 1 : o.gunScale);
+  // 双臂抓着枪，画在枪上方
+  drawArms(px, py, w);
+
   // 头盔与面甲不是一颗圆点：外壳、护目条、面罩、顶部识别带分开绘制。
   const hy = py - 16;
   const hw = w * (f.helmet === "heavy" ? .57 : .49);
@@ -812,71 +846,101 @@ function drawSoldier(px, py, form, color, opts) {
   ctx.fillStyle = "#324b54";
   roundRect(ctx, px - 4, hy + 2, 8, 5, 1.5); ctx.fill();
 
-  // 前伸的枪与双臂。任何形态都必须读出"持枪"，不是背着一根棍子。
-  drawWeapon(px, py - 12, o.weapon || "rifle", w);
   ctx.restore();
 }
 
-/* 枪的俯视剪影：枪托、机匣、枪管、弹匣。枪种决定轮廓。 */
-function drawWeapon(px, py, type, w) {
-  const spec = {
-    pistol: { len: 15, wide: 3.4, mag: 0,  scope: false, spread: 0 },
-    rifle:  { len: 26, wide: 4.0, mag: 6,  scope: false, spread: 0 },
-    shotgun:{ len: 22, wide: 6.0, mag: 0,  scope: false, spread: 3 },
-    sniper: { len: 34, wide: 3.2, mag: 4,  scope: true,  spread: 0 }
-  }[type] || { len: 26, wide: 4, mag: 6 };
-
-  // 双臂呈夹枪姿态，袖口、护肘和露出的握枪手分别落色。
+/* 双臂：从肩膀斜伸到枪身两侧。单独一个函数，方便在"枪之后、头盔之前"插入。 */
+function drawArms(px, py, w) {
+  ctx.save();
+  ctx.strokeStyle = "#263740";
+  ctx.lineWidth = 1.1;
   for (const side of [-1, 1]) {
     ctx.save();
-    ctx.translate(px + side * w * .63, py + 1);
-    ctx.rotate(side * .36);
+    ctx.translate(px + side * w * .60, py + 1);
+    ctx.rotate(side * .18);
     ctx.fillStyle = "#3d535d";
-    roundRect(ctx, -3.5, -7, 7, 14, 2); ctx.fill(); ctx.stroke();
+    roundRect(ctx, -3.8, -8, 7.6, 16, 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#778b8e";
-    ctx.fillRect(-3, -1, 6, 3);
+    ctx.fillRect(-3.2, -1, 6.4, 3);
+    // 露出的握枪手
     ctx.fillStyle = "#bdad91";
-    roundRect(ctx, -2.8, -9, 5.6, 4, 1.5); ctx.fill();
+    roundRect(ctx, -3, -10, 6, 4.4, 1.5); ctx.fill();
     ctx.restore();
   }
+  ctx.restore();
+}
 
-  const L = spec.len;
-  // 枪托
-  ctx.fillStyle = PAL.gun;
-  ctx.fillRect(px - 3, py + 1, 6, 5);
-  // 机匣
-  ctx.fillRect(px - spec.wide / 2, py - L * .45, spec.wide, L * .5);
-  // 枪管
-  ctx.fillStyle = PAL.gunLight;
-  ctx.fillRect(px - spec.wide * .32, py - L, spec.wide * .64, L * .58);
+/* 枪的俯视剪影：枪托、机匣、护木、枪管、弹匣。枪种决定轮廓。
+   长度是夸张后的卡通比例（真实步枪 0.9 m = 75 px，会把整个队伍糊住），
+   但必须长过头顶 20 px 以上，否则头盔一压就只剩个枪口。 */
+function drawWeapon(px, py, type, w, shrink) {
+  const spec = {
+    pistol: { len: 20, wide: 6.5, mag: 5,  scope: false, spread: 0 },
+    rifle:  { len: 26, wide: 5.8, mag: 7,  scope: false, spread: 0 },
+    shotgun:{ len: 26, wide: 6.8, mag: 0,  scope: false, spread: 4 },
+    sniper: { len: 40, wide: 6.5, mag: 7,  scope: true,  spread: 0 }
+  }[type] || { len: 26, wide: 5.8, mag: 7 };
+
+  const k = shrink == null ? 1 : shrink;
+  const L = spec.len * k, Wd = spec.wide;
+  ctx.strokeStyle = "#111820";
+  ctx.lineWidth = 1;
+
+  // 整把枪先描一圈深色轮廓，把机匣 / 护木 / 枪管并成"一把枪"而不是三根杆
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "#0d1319";
+  ctx.fillStyle = "#29313a";
+  roundRect(ctx, px - Wd * .45, py - 3, Wd * .9, 9, 2); ctx.fill(); ctx.stroke();
+
+  // 机匣：主体，最宽
+  ctx.fillStyle = "#232b33";
+  roundRect(ctx, px - Wd / 2, py - L * .62, Wd, L * .62 + 2, 1.6); ctx.fill();
+
+  // 护木：机匣前方一小段略微收窄
+  ctx.fillStyle = "#2e3740";
+  ctx.fillRect(px - Wd * .38, py - L * .78, Wd * .76, L * .20);
+
+  // 枪管：从护木一直伸到枪口，比机匣细
+  ctx.fillStyle = "#3a454f";
+  ctx.fillRect(px - Wd * .17, py - L, Wd * .34, L * .26);
+  ctx.fillStyle = "#59656f";
+  ctx.fillRect(px - Wd * .17, py - L, Wd * .12, L * .26);
+
+  // 弹匣：从机匣下方向后弯出一块，是"这是枪不是棍"的第二重线索
+  if (spec.mag) {
+    ctx.fillStyle = "#242c34";
+    roundRect(ctx, px - Wd * .28, py - L * .34, Wd * .56, spec.mag + 3, 1.4); ctx.fill();
+  }
+
   // 霰弹枪的枪口外扩
   if (spec.spread) {
-    ctx.fillStyle = PAL.gun;
+    ctx.fillStyle = "#1b222a";
     ctx.beginPath();
-    ctx.moveTo(px - spec.wide * .3, py - L + 4);
-    ctx.lineTo(px + spec.wide * .3, py - L + 4);
-    ctx.lineTo(px + spec.spread + 2, py - L - 3);
-    ctx.lineTo(px - spec.spread - 2, py - L - 3);
+    ctx.moveTo(px - Wd * .20, py - L + 3);
+    ctx.lineTo(px + Wd * .20, py - L + 3);
+    ctx.lineTo(px + spec.spread, py - L - 4);
+    ctx.lineTo(px - spec.spread, py - L - 4);
     ctx.closePath(); ctx.fill();
   }
-  // 弹匣（向下弯出一块）
-  if (spec.mag) {
-    ctx.fillStyle = PAL.gun;
-    ctx.fillRect(px + 1, py - 4, 3.4, spec.mag);
-  }
-  // 瞄镜
+
+  // 瞄镜：狙击枪唯一的外观身份证
   if (spec.scope) {
     ctx.fillStyle = "#39424d";
-    ctx.fillRect(px + 2.6, py - L * .8, 2.6, 9);
-    ctx.fillStyle = "rgba(120,190,220,.55)";
-    ctx.fillRect(px + 2.9, py - L * .8, 1.4, 2);
+    roundRect(ctx, px + Wd * .18, py - L * .72, 4.4, 11, 1.5); ctx.fill();
+    ctx.fillStyle = "rgba(130,200,225,.65)";
+    ctx.fillRect(px + Wd * .18 + 1, py - L * .72 + 1.5, 2.4, 2);
   }
 }
 
-/* 队伍：P0 用一支小队展示三种形态 + 四把枪，方便直接看美术。
-   P1 起这三个人的横向偏移就是"队形"的雏形：总宽锁死 FORM_W，
-   所以贴边时外侧的人只会挤到桥沿，绝不会踩出桥面。 */
-const Squad = { x: 0, targetX: 0, count: 1, weapon: "pistol", level: 1, k: 1.5, formation: null };
+/* 队伍：P2 起人数是真实变量，但画面还只给一个临时队形（3 列 × 3 排 = 9 人）。
+   正式的 21 档（3 形态 × 7 色，display 上限 40）在 P3 才接入。
+   这里刻意先跑通"人数会变 → 画面会变"这条回路，门才有反馈。 */
+const Squad = {
+  x: 0, targetX: 0,
+  count: 5,            // 实际人数。不是 1：m=1 时 +n 恒为 1，第一对门等于没有选择
+  shown: 5,            // 显示值，向 count 补间，让数字滚动而不是跳变
+  weapon: "pistol", level: 1, k: 1.5, formation: null
+};
 
 /* 队形里的一个成员能站到多外侧 —— 这是"不能移动到桥外"的唯一出口。
    所有绘制都必须走这里，禁止在别处写 Squad.x + dx。 */
@@ -885,17 +949,334 @@ function memberX(dx) {
   return clamp(Squad.x + dx, -lim, lim);
 }
 
-function drawSquad(t) {
-  // 三名预览战士均分 1.6 m 队形宽度：-0.8 / 0 / +0.8
-  const demo = [
-    { dx: -FORM_HALF, form: 1, color: "#F2E9D8" },
-    { dx: 0,          form: 2, color: "#FAC775" },
-    { dx: FORM_HALF,  form: 3, color: "#A855C8" }
-  ];
-  for (const d of demo) {
-    const q = project(memberX(d.dx), 0);
-    drawSoldier(q.x, q.y, d.form, d.color, { walk: t * 6, weapon: Squad.weapon });
+const MAX_DRAW = 8;                      // P2 临时显示上限（4 列 × 2 排），P3 换成 21 档正式队形
+const FORM_COLS = 4;                     // 横向 4 列比纵向 4 排更容易读成"一队人"
+const FORM_ROW_DZ = 0.58;                // 排间距（米）
+const DEMO_STYLE = [
+  { form: 1, color: "#F2E9D8" },
+  { form: 2, color: "#FAC775" },
+  { form: 3, color: "#A855C8" }
+];
+
+/* 队形表：4 列铺满 FORM_W，人多了往后加排（不加宽）。
+   宽度恒定是硬约束（§4.2.2）——宽度一变，走位上限就得重算。
+   返回时按 dz 升序 = 后排先画、前排后画，前面的战士才会挡住后面的腿，
+   否则画面读起来是"一堆并排的头"而不是"一队人"。
+   只有最前排画枪：后排的枪一定会插进前一排的身体，
+   画出来就是一根贯穿整列的黑杆（这个已经踩过一次）。 */
+function squadMembers() {
+  const n = clamp(Math.round(Squad.shown), 1, MAX_DRAW);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const row = Math.floor(i / FORM_COLS);
+    const start = row * FORM_COLS;
+    const inRow = Math.min(FORM_COLS, n - start);
+    const col = i - start;
+    const dx = inRow === 1 ? 0 : (col - (inRow - 1) / 2) * (FORM_W / (inRow - 1));
+    out.push({
+      dx, dz: -row * FORM_ROW_DZ,
+      form: DEMO_STYLE[i % 3].form, color: DEMO_STYLE[i % 3].color,
+      ph: i * 1.7, gun: row === 0 ? 1 : 0.42
+    });
   }
+  out.sort((a, b) => a.dz - b.dz);
+  return out;
+}
+
+function drawSquad(t) {
+  for (const m of squadMembers()) {
+    const q = project(memberX(m.dx), m.dz);
+    drawSoldier(q.x, q.y, m.form, m.color, { walk: t * 6 + m.ph, weapon: Squad.weapon, gunScale: m.gun });
+  }
+}
+
+/* =========================================================================
+   P2 · 门系统（§6.2）
+   -------------------------------------------------------------------------
+   正俯视下门不再是"立起来的高门框"，而是**平铺在桥面上的发光门区**：
+   两块矩形能量面，左右各一，中间留一条 0.45 m 的缝。
+
+   几何（全部由 §6.2.8 推出来，不许随手改）：
+     门区中心   x = ±1.40 m
+     门区宽     2.35 m   → 外缘 2.575 m，正好在战场边界 2.66 m 内
+     门区纵深   0.90 m
+     中央缝     2×1.40 − 2.35 = 0.45 m
+   队伍中心走位范围 ±1.56 m，所以左右两侧都在门区覆盖内，只有故意走中线才会从缝里穿过。
+   ========================================================================= */
+const GATE = {
+  cx: 1.40,
+  w: 2.35,
+  d: 0.90,
+  intervalMin: 3.5,      // 到达间隔（秒），§7.1 目标 3.5–4.5
+  intervalMax: 4.5
+};
+
+/* 一屏只有一对：生成器只维护这一个对象（§6.2.4 硬规则 4）。
+   新门在屏外生成（距离 > 可见纵深 9.68 m），所以屏幕里永远不可能出现第二对。 */
+let pair = null;
+let pairCount = 0;            // 累计生成对数，调试用
+let pairMaxAlive = 0;         // 观测到的最大存活对数，必须恒为 1
+
+/* 加法门：n 由"当前人数 × 系数 × 0.8~1.2"算出，系数取决于对面站着谁（§6.2.2）。
+   这是整套双资源系统的等价兑换：对面 ×2 就给 100%，对面武器就给 20%。 */
+function addValue(coef, m) {
+  return Math.max(1, Math.round(coef * Math.max(1, m) * rand(0.8, 1.2)));
+}
+
+function makePair() {
+  const m = Math.max(1, Math.round(Squad.count));
+  /* 开场教学期与人数极少时不出陷阱门：
+     m = 1 时 ÷2 还是 1（round(0.5) 被下限钳回 1），陷阱等于不存在；
+     m ≤ 3 时 -n 也只是擦破皮，玩家会学到"陷阱不用怕"这个错的结论。
+     文档 §7.3 也是这么排的：0–20 秒只有人数门，先学会比大小。 */
+  const noTrap = simT < 20 || m <= 3;
+  let left, right;
+
+  /* P2 阶段武器门还没实现（P4.4 才接），所以配对权重临时改成
+     「人数 vs 人数 70% / 正向 vs 陷阱 30%」。
+     P4.4 之后恢复文档里的 40 / 45 / 15。 */
+  if (noTrap || Math.random() < 0.70) {
+    // 人数 vs 人数：×2 对 +n(n ≈ m ±20%)
+    left  = { op: "mul", value: 2 };
+    right = { op: "add", value: addValue(1.0, m) };
+    if (Math.random() < 0.5) [left, right] = [right, left];
+  } else if (Math.random() < 0.5) {
+    // 正向 vs 陷阱：×2 对 ÷2
+    left  = { op: "mul", value: 2 };
+    right = { op: "div", value: 2 };
+    if (Math.random() < 0.5) [left, right] = [right, left];
+  } else {
+    // 正向 vs 陷阱：+n 对 -n（同系数 0.6，镜像对称）
+    left  = { op: "add", value: addValue(0.6, m) };
+    right = { op: "sub", value: addValue(0.6, m) };
+    if (Math.random() < 0.5) [left, right] = [right, left];
+  }
+
+  return {
+    z: SCROLL * rand(GATE.intervalMin, GATE.intervalMax),   // 屏外生成，自己滚进来
+    left, right,
+    resolved: false,
+    fade: 1,
+    enteredAt: 0
+  };
+}
+
+function spawnPair() {
+  pair = makePair();
+  pair.enteredAt = simT;
+  pairCount++;
+}
+
+/* 穿门结算：只在"门区中心越过队伍线"那一帧判一次（§6.2.2 生成时锁定数值）。
+   判定用队伍中心点，命中就看它落在哪块门区里；落在中间缝里什么也拿不到。 */
+function resolvePair() {
+  pair.resolved = true;
+  const halfW = GATE.w / 2;
+  const g = Math.abs(Squad.x + GATE.cx) <= halfW ? pair.left
+          : Math.abs(Squad.x - GATE.cx) <= halfW ? pair.right
+          : null;
+
+  if (!g) {
+    // 从缝里穿过：不是 bug，是"你看错了"的代价
+    addFloater("错过", W / 2, SQUAD_Y - 60, "#8a99a4", 26);
+    return;
+  }
+
+  const before = Squad.count;
+  const label = gateLabel(g);
+  applyGate(g);
+  const after = Squad.count;
+  const color = g.op === "sub" || g.op === "div" ? PAL.pink : PAL.teal;
+
+  const cx = W / 2 + (g === pair.left ? -GATE.cx : GATE.cx) * PPM;
+  burst(cx, SQUAD_Y - 24, color, 26);
+  addFloater(label, cx, SQUAD_Y - 56, color, 40);
+  addFloater((after >= before ? "+" : "") + (after - before), cx, SQUAD_Y - 104, "#ffffff", 30);
+  hudBump();
+}
+
+function applyGate(g) {
+  const n = Math.max(1, Math.round(Squad.count));
+  if (g.op === "add") Squad.count = n + g.value;
+  else if (g.op === "sub") Squad.count = Math.max(1, n - g.value);
+  else if (g.op === "mul") Squad.count = Math.max(1, Math.round(n * g.value));
+  else if (g.op === "div") Squad.count = Math.max(1, Math.round(n / g.value));
+}
+
+/* 门面文案：数字按 §7.1.5 的万 / 亿缩写，否则四位数会读不完 */
+function abbr(n) {
+  if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, "") + "亿";
+  if (n >= 1e4) return (n / 1e4).toFixed(1).replace(/\.0$/, "") + "万";
+  return String(n);
+}
+function gateLabel(g) {
+  if (g.op === "add") return "+" + abbr(g.value);
+  if (g.op === "sub") return "−" + abbr(g.value);
+  if (g.op === "mul") return "×" + g.value;
+  if (g.op === "div") return "÷" + g.value;
+  return "";
+}
+
+function updateGates(dt) {
+  if (!pair) { spawnPair(); return; }
+  pair.z -= SCROLL * dt;
+  if (!pair.resolved && pair.z <= 0) resolvePair();
+  if (pair.resolved) {
+    pair.fade -= dt * 4;              // 0.25 秒淡出，然后才允许下一对
+    if (pair.fade <= 0) pair = null;
+  }
+  pairMaxAlive = Math.max(pairMaxAlive, pair ? 1 : 0);
+}
+
+/* ---------- 门区绘制 ----------
+   一块门区在屏幕上只有 197 × 76 px，却要装下"×2"或"+12000"。
+   所以：底色做深（保证白字可读）、边框做亮（保证不糊在亮桥上）、
+   四角加短立柱（俯视下唯一的立体线索，说明这是一道可以从中间穿过的门）。 */
+function drawGate(g, side, z, alpha) {
+  const cx = side * GATE.cx;
+  const p = project(cx, z);
+  const hw = GATE.w / 2 * PPM;
+  const hh = GATE.d / 2 * PPM;
+  const x0 = p.x - hw, y0 = p.y - hh, wpx = hw * 2, hpx = hh * 2;
+  const trap = g.op === "sub" || g.op === "div";
+
+  // 脉冲：陷阱门必须比正向门更抢眼，否则没人会上当（§6.2.4 硬规则 5）
+  const pulse = trap ? 0.80 + 0.20 * Math.sin(simT * 7) : 1;
+  const deep = trap ? "#8c2f52" : "#0d6b4c";
+  const edge = trap ? "#ED93B1" : "#5DCAA5";
+
+  ctx.save();
+  ctx.globalAlpha = alpha * pulse;
+
+  // 外侧光晕：让门区"照"在水泥路面上，而不是贴了一张纸
+  const halo = ctx.createRadialGradient(p.x, p.y, hh * .5, p.x, p.y, hw * 1.15);
+  halo.addColorStop(0, trap ? "rgba(237,147,177,.30)" : "rgba(93,202,165,.30)");
+  halo.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(p.x - hw * 1.25, p.y - hh * 2.0, hw * 2.5, hh * 4.0);
+
+  // 近侧拖影：门是从远处扑过来的，脚下要留一道被"扫过"的光带
+  const tail = ctx.createLinearGradient(0, y0 + hpx, 0, y0 + hpx + 30);
+  tail.addColorStop(0, trap ? "rgba(237,147,177,.28)" : "rgba(93,202,165,.28)");
+  tail.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = tail;
+  ctx.fillRect(x0 + 3, y0 + hpx, wpx - 6, 30);
+
+  // 门区本体：上深下浅。圆角必须小，10px 以上会立刻读成"UI 卡片"
+  const bg = ctx.createLinearGradient(0, y0, 0, y0 + hpx);
+  bg.addColorStop(0, deep);
+  bg.addColorStop(.62, deep);
+  bg.addColorStop(1, trap ? "rgba(140,47,82,.62)" : "rgba(13,107,76,.62)");
+  ctx.fillStyle = bg;
+  roundRect(ctx, x0, y0, wpx, hpx, 4);
+  ctx.fill();
+
+  // 光幕条纹：横向扫描线，把它从"色块"变成"能量场"。太密会糊，7px 刚好
+  ctx.save();
+  roundRect(ctx, x0, y0, wpx, hpx, 4);
+  ctx.clip();
+  ctx.fillStyle = "rgba(255,255,255,.055)";
+  for (let yy = y0 + 4; yy < y0 + hpx; yy += 7) ctx.fillRect(x0, yy, wpx, 1.6);
+  ctx.restore();
+
+  // 远侧光刃：门"迎上来"的那一边必须最亮，这是门的正面
+  ctx.fillStyle = edge;
+  ctx.globalAlpha = alpha * pulse * .95;
+  ctx.fillRect(x0 + 3, y0, wpx - 6, 4.5);
+  ctx.globalAlpha = alpha * pulse;
+
+  // 边框：外亮线 + 内白线
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = edge;
+  roundRect(ctx, x0 + 1.5, y0 + 1.5, wpx - 3, hpx - 3, 4);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,.42)";
+  roundRect(ctx, x0 + 5, y0 + 5, wpx - 10, hpx - 10, 3);
+  ctx.stroke();
+
+  // 四角地钉：俯视下唯一能读出"这块门有厚度"的线索，做成小圆钉不像 UI 角标
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    const bx = p.x + sx * (hw - 5), by = p.y + sy * (hh - 5);
+    ctx.fillStyle = "rgba(20,32,40,.30)";
+    ctx.beginPath(); ctx.ellipse(bx + 2, by + 3, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = edge;
+    ctx.beginPath(); ctx.arc(bx, by, 4.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.7)";
+    ctx.beginPath(); ctx.arc(bx - 1, by - 1.2, 1.6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // 数字 / 符号：字号按位数自适应（§6.2.7），四位数下限 4% 屏高
+  const text = gateLabel(g);
+  const digits = text.length;
+  const size = (digits <= 2 ? 0.058 : digits === 3 ? 0.049 : 0.040) * H * (trap ? 1.06 : 1);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "800 " + size.toFixed(1) + "px ui-monospace,Menlo,Consolas,monospace";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = size * .16;
+  ctx.strokeStyle = "rgba(8,18,24,.72)";
+  ctx.strokeText(text, p.x, p.y + 1);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(text, p.x, p.y + 1);
+
+  ctx.restore();
+}
+
+function drawGates() {
+  if (!pair) return;
+  const alpha = pair.resolved ? Math.max(0, pair.fade) : 1;
+  drawGate(pair.left, -1, pair.z, alpha);
+  drawGate(pair.right, 1, pair.z, alpha);
+}
+
+/* ---------- 穿门特效：碎块 + 飘字 ---------- */
+const parts = [], floaters = [];
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, Math.PI * 2), sp = rand(60, 260);
+    parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .7, life: rand(.35, .75), t: 0, c: color, s: rand(2, 5) });
+  }
+}
+function addFloater(text, x, y, color, size) {
+  floaters.push({ text, x, y, color, size, life: 1, t: 0 });
+}
+function updateFx(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.t += dt;
+    p.x += p.vx * dt; p.y += p.vy * dt + SCROLL * PPM * .5 * dt;
+    p.vx *= 1 - 2.6 * dt; p.vy *= 1 - 1.5 * dt;
+    if (p.t >= p.life) parts.splice(i, 1);
+  }
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i];
+    f.t += dt; f.y -= 34 * dt;
+    if (f.t >= f.life) floaters.splice(i, 1);
+  }
+}
+function drawFx() {
+  for (const p of parts) {
+    ctx.globalAlpha = Math.max(0, 1 - p.t / p.life);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (const f of floaters) {
+    const k = f.t / f.life;
+    ctx.globalAlpha = Math.max(0, 1 - k * k);
+    const size = f.size * (1 + k * .12);
+    ctx.font = "800 " + size.toFixed(1) + "px ui-monospace,Menlo,Consolas,monospace";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = size * .18;
+    ctx.strokeStyle = "rgba(10,22,28,.7)";
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
 }
 
 /* =========================================================================
@@ -954,17 +1335,28 @@ function loop(now) {
 function update(dt) {
   Squad.x = lerp(Squad.x, Squad.targetX, 1 - Math.pow(1 - 0.35, dt * 60));
   Squad.x = clamp(Squad.x, -SQUAD_LIMIT, SQUAD_LIMIT);
+  // 显示值向实际人数补间：门一穿过，HUD 数字要"滚"上去，不能瞬间跳
+  Squad.shown = lerp(Squad.shown, Squad.count, 1 - Math.pow(1 - 0.14, dt * 60));
+  if (Math.abs(Squad.shown - Squad.count) < 0.02) Squad.shown = Squad.count;
+
   // P1.6：滚动速度由时间曲线驱动，速度只改变"东西多快过去"，不改 PPM
   SCROLL = speedAt(simT);
   // 启动页也慢慢滚一点，让标题下面那座桥是活的
   scrollM += (phase === "BOOT" ? 2.6 : SCROLL) * dt;
   updateAsh(dt);
+
+  if (phase === "PLAY") {
+    updateGates(dt);
+    updateFx(dt);
+  }
 }
 
 function render() {
   drawScene();
+  if (phase === "PLAY") drawGates();
   drawSquad(simT);
   drawAsh();
+  if (phase === "PLAY") drawFx();
 }
 
 /* =========================================================================
@@ -996,7 +1388,7 @@ const keys = {};
 window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") { keys[e.key] = true; e.preventDefault(); }
   if (e.key === "d" || e.key === "D") toggleDebug();
-  if (e.key === "Enter" && phase === "BOOT") startPreview();
+  if (e.key === "Enter" && phase === "BOOT") startGame();
   // 临时：数字键换枪，方便直接看四种武器在战士手上的样子
   const wm = { "1": "pistol", "2": "rifle", "3": "shotgun", "4": "sniper" };
   if (wm[e.key]) { Squad.weapon = wm[e.key]; updateHudWeapon(); }
@@ -1030,25 +1422,32 @@ function updateDebug() {
   $("dbgFps").textContent = fps;
   $("dbgFps").className = fps >= 55 ? "" : "warn";
   $("dbgMs").textContent = frameMs.toFixed(1);
-  $("dbgEnt").textContent = ASH_N + 3;
-  $("dbgAsh").textContent = ASH_N;
+  $("dbgEnt").textContent = ASH_N + squadMembers().length + (pair ? 2 : 0);
+  $("dbgAsh").textContent = ASH_N + parts.length;
   $("dbgDpr").textContent = View.dpr;
   $("dbgClamp").textContent = clamps;
   $("dbgPhase").textContent = phase;
   $("dbgT").textContent = simT.toFixed(2);
-  $("dbgN").textContent = Squad.count;
+  $("dbgN").textContent = abbr(Squad.count);
+  $("dbgShown").textContent = Math.round(Squad.shown);
   $("dbgK").textContent = Squad.k.toFixed(2);
   $("dbgV").textContent = SCROLL.toFixed(2);
   $("dbgLim").textContent = "±" + SQUAD_LIMIT.toFixed(2);
   $("dbgDist").textContent = scrollM.toFixed(0);
-  $("dbgForm").textContent = Squad.formation || "—";
+  $("dbgPair").textContent = pairCount;
+  $("dbgZ").textContent = pair ? pair.z.toFixed(2) : "—";
+  $("dbgGL").textContent = pair ? gateLabel(pair.left) : "—";
+  $("dbgGR").textContent = pair ? gateLabel(pair.right) : "—";
+  $("dbgAlive").textContent = pairMaxAlive;
+  // 一屏一对门是硬约束：一旦峰值 > 1 就当场标红，不能等到肉眼发现
+  $("dbgAliveWrap").className = pairMaxAlive > 1 ? "warn" : "";
   $("fpsBadge").textContent = fps + " FPS";
 }
 setInterval(updateDebug, 250);
 
 /* 投影自检表：正俯视下 z → y 是一条直线，列出来给后续阶段对照 */
 (function buildProjTable() {
-  const rows = [[Math.round(VIEW_Z), "画面顶端"], [7, "刷新线"], [5, "门出现"], [2, "门逼近"], [0, "接触线 · 队伍"]];
+  const rows = [[Math.round(VIEW_Z * 10) / 10, "画面顶端·门入场"], [6, "阅读区"], [3, "决断区"], [GATE.d / 2, "门区后沿"], [0, "接触线·结算"]];
   $("dbgProj").innerHTML = rows.map(([z, label]) =>
     "<tr><td>" + z + "</td><td class='proj'>" + groundY(z).toFixed(0) + "</td><td class='proj'>" +
     PPM + "px</td><td>" + label + "</td></tr>"
@@ -1060,19 +1459,49 @@ setInterval(updateDebug, 250);
    ========================================================================= */
 function updateHudWeapon() {
   const names = { pistol: "手枪", rifle: "步枪", shotgun: "霰弹枪", sniper: "狙击枪" };
-  const labels = { pistol: "k 1.50", rifle: "Lv 1", shotgun: "Lv 1", sniper: "Lv 1" };
+  const lv = Squad.weapon === "pistol" ? "k " + Squad.k.toFixed(2) : "Lv " + Squad.level;
   $("hudWeapon").innerHTML =
     '<svg width="26" height="12" viewBox="0 0 26 12"><rect x="2" y="3" width="16" height="3" fill="#F2E9D8"/><rect x="17" y="1" width="3" height="6" fill="#F2E9D8"/><rect x="5" y="6" width="4" height="5" fill="#F2E9D8"/></svg>' +
-    '<span>' + names[Squad.weapon] + '</span><span class="lv">' + labels[Squad.weapon] + '</span>';
+    '<span>' + names[Squad.weapon] + '</span><span class="lv">' + lv + '</span>';
 }
 updateHudWeapon();
 
-function startPreview() {
-  phase = "PREVIEW";
+/* 人数弹跳：只在穿门那一瞬间缩一下，用来确认"这一脚算数了" */
+let bumpTimer = 0;
+function hudBump() {
+  const el = $("hudN");
+  el.classList.add("hit");
+  clearTimeout(bumpTimer);
+  bumpTimer = setTimeout(() => el.classList.remove("hit"), 130);
+}
+
+function mmss(s) {
+  return Math.floor(s / 60) + ":" + pad(Math.floor(s % 60));
+}
+
+function updateHud() {
+  if (phase !== "PLAY") return;
+  $("hudN").textContent = abbr(Math.round(Squad.shown));
+  $("hudDist").textContent = Math.round(scrollM);
+  $("hudTime").textContent = mmss(simT);
+  // 右上原来写"— 无遭遇 —"，P2 还没有丧尸，这个占位不如给一个真有用的读数：
+  // 门还有几秒到脚下。P3 接编队后这里改回编队名。
+  $("hudFormation").textContent = pair && !pair.resolved && pair.z > 0
+    ? "门 " + (pair.z / SCROLL).toFixed(1) + "s"
+    : "—";
+  // 操作提示只在开场 8 秒内有效：队伍后排在 y≈919，提示正好压在脚上
+  $("hudHint").style.opacity = simT > 8 ? "0" : "1";
+}
+setInterval(updateHud, 80);
+
+function startGame() {
+  phase = "PLAY";
   $("boot").classList.add("hidden");
   $("hud").classList.add("on");
+  updateHudWeapon();
+  spawnPair();                       // 第一对门立刻在屏外排好队
 }
-$("startBtn").addEventListener("click", startPreview);
+$("startBtn").addEventListener("click", startGame);
 
 /* =========================================================================
    启动
@@ -1083,10 +1512,16 @@ requestAnimationFrame((t) => { running = true; last = 0; loop(t); });
 
 // 暴露给后续阶段 / 控制台自检
 window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
-  SQUAD_LIMIT, FORM_W, SQUAD_HALF, memberX, speedAt,
+  SQUAD_LIMIT, FORM_W, SQUAD_HALF, MAX_DRAW, GATE,
+  memberX, squadMembers, speedAt, addValue, gateLabel, abbr,
   project, groundY, View, Squad, PAL,
+  get pair() { return pair; },
+  get pairCount() { return pairCount; },
+  get pairMaxAlive() { return pairMaxAlive; },
+  get parts() { return parts; },
   get fps() { return fps; }, get simT() { return simT; }, get clamps() { return clamps; },
-  get scrollM() { return scrollM; } };
+  get scrollM() { return scrollM; }, get phase() { return phase; },
+  applyGate, spawnPair };
 
 </script>
 </body>

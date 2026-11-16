@@ -200,6 +200,68 @@
     display:block;font-family:var(--mono);font-size:calc(var(--u,1px)*9.5);
     color:rgba(242,233,216,.55);line-height:1.3;
   }
+  /* 换枪闪白：升级轻快（0.38s 金），换枪沉重（0.62s 白）。
+     铭牌一个像素都不动，只让"枪位"自己亮一下 —— 玩家的眼睛本来就盯在那儿。 */
+  .hs-slot.flash{animation:gunFlash .38s ease}
+  .hs-slot.swap{animation:gunSwap .62s ease}
+  @keyframes gunFlash{
+    0%,100%{box-shadow:inset 0 0 0 1px rgba(242,233,216,.16)}
+    28%{box-shadow:inset 0 0 0 1px #F0B03C,0 0 13px rgba(240,176,60,.55);background:rgba(240,176,60,.30)}
+  }
+  @keyframes gunSwap{
+    0%,100%{box-shadow:inset 0 0 0 1px rgba(242,233,216,.16)}
+    18%{box-shadow:inset 0 0 0 1px #FFFFFF,0 0 20px rgba(255,255,255,.62);background:rgba(255,255,255,.44)}
+  }
+
+  /* ---------- 结算面板 ---------- */
+  #over{
+    position:absolute;inset:0;display:none;
+    flex-direction:column;justify-content:center;align-items:center;
+    padding:0 11%;
+    /* 结算面板必须**基本遮住战场**。
+       第一版用 52% → 94% 的径向渐变，中心正好压在文字上，
+       结果门和尸潮透上来，文案读不清、还和门上的字互相打架。
+       现在压到 90% 以上 + 轻微模糊：能看出"下面还有一座桥"，但读的是字。 */
+    background:linear-gradient(to bottom,rgba(12,18,25,.90),rgba(8,12,17,.96));
+    backdrop-filter:blur(3px);
+    pointer-events:auto;
+  }
+  #over.on{display:flex;animation:overIn .34s ease both}
+  @keyframes overIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  #over .tag{font-size:calc(var(--u,1px)*11);letter-spacing:calc(var(--u,1px)*4.2)}
+  #over .over-lead{
+    margin-top:calc(var(--u,1px)*16);text-align:center;
+    font-size:calc(var(--u,1px)*15);line-height:1.5;color:rgba(242,233,216,.72);
+  }
+  #over .over-lead b{
+    display:block;font-family:var(--mono);font-size:calc(var(--u,1px)*52);font-weight:500;
+    color:var(--bone);letter-spacing:calc(var(--u,1px)*-1.5);line-height:1.05;margin-bottom:calc(var(--u,1px)*4);
+  }
+  #over .over-rows{
+    margin-top:calc(var(--u,1px)*26);width:100%;
+    font-family:var(--mono);font-size:calc(var(--u,1px)*12);color:var(--muted);
+    border-top:1px solid var(--hairline);
+  }
+  #over .over-rows div{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:calc(var(--u,1px)*9) 0;border-bottom:1px solid rgba(242,233,216,.08);
+  }
+  #over .over-rows b{font-weight:500;color:var(--bone);font-size:calc(var(--u,1px)*14)}
+  #over .over-note{
+    margin-top:calc(var(--u,1px)*20);text-align:center;
+    font-size:calc(var(--u,1px)*11.5);line-height:1.7;letter-spacing:calc(var(--u,1px)*1.2);
+    color:rgba(242,233,216,.48);
+  }
+  #againBtn{
+    margin-top:calc(var(--u,1px)*24);width:100%;
+    appearance:none;border:1px solid rgba(242,233,216,.5);
+    background:var(--bone);color:#22303c;
+    font-size:calc(var(--u,1px)*17);font-weight:600;letter-spacing:calc(var(--u,1px)*3);
+    padding:calc(var(--u,1px)*16) 0;border-radius:calc(var(--u,1px)*6);
+    cursor:pointer;font-family:inherit;transition:transform .15s ease,background .15s ease;
+  }
+  #againBtn:hover{background:#fff}
+  #againBtn:active{transform:scale(.98)}
   .hud-right{
     text-align:right;font-family:var(--mono);font-size:calc(var(--u,1px)*10.5);line-height:1.65;color:var(--muted);
     background:rgba(22,32,42,.48);border:1px solid rgba(242,233,216,.10);
@@ -292,7 +354,7 @@
             <div id="hudFormation">— 无遭遇 —</div>
           </div>
         </div>
-        <div class="hud-bottom" id="hudHint">v0.21 · 门贴合　左右拖动选门 · D 调试</div>
+        <div class="hud-bottom" id="hudHint">v0.22 · 武器与战斗　左右拖动选门 · D 调试</div>
       </div>
 
       <div id="fpsBadge"></div>
@@ -300,7 +362,7 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · v0.21 门贴合</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · v0.22 武器与战斗</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
@@ -335,6 +397,15 @@
           <span>队首 z <b id="dbgWaveZ">—</b></span>
           <span>下一波 <b id="dbgNext">—</b>s</span>
         </div>
+        <div class="row">
+          <span>k <b id="dbgK">1.50</b></span>
+          <span>K(t) <b id="dbgKt">3.0</b></span>
+          <span>波战斗力 <b id="dbgM">0</b></span>
+          <span>火力线 <b id="dbgLine">2.00</b>m</span>
+          <span>预计 <b id="dbgPred">—</b></span>
+          <span>伤害累计 <b id="dbgHurt">0.00</b></span>
+          <span>倒地 <b id="dbgCas">0</b></span>
+        </div>
         <table>
           <tr><th>z</th><th>screenY</th><th>1 单位高</th><th>区域</th></tr>
           <tbody id="dbgProj"></tbody>
@@ -345,7 +416,7 @@
         <div>
           <div class="boot-top">
             <div class="tag">末 日 高 架</div>
-            <div class="stage-pill">P3 / 07</div>
+            <div class="stage-pill">P4 / 07</div>
           </div>
           <div class="title-wrap">
             <h1 class="title">Z<span>-</span>RUSH</h1>
@@ -356,11 +427,25 @@
           <div>视角 <b>正俯视</b> · 战场占屏 <b>83%</b></div>
           <div>队伍 <b>21 档</b> · 显示上限 <b>24</b> 人</div>
           <div>丧尸 <b>5 列</b> · 尸潮 / 混编 / 精锐</div>
+          <div>武器 <b>步枪 / 霰弹 / 狙击</b> · 升级 +20%</div>
         </div>
         <div class="boot-bottom">
           <button id="startBtn">进 入 断 桥</button>
-          <div class="boot-hint">左右拖动选门 · D 调试 · 1/2/3/4 换枪预览</div>
+          <div class="boot-hint">左右拖动选门 · 琥珀门是枪 · D 调试</div>
         </div>
+      </div>
+
+      <div id="over">
+        <div class="tag">断 桥 尽 头</div>
+        <div class="over-lead"><b id="overPeak">0</b>人走到这里，全部留在了桥上</div>
+        <div class="over-rows">
+          <div><span>距离</span><b id="overDist">0 m</b></div>
+          <div><span>坚持</span><b id="overTime">0:00</b></div>
+          <div><span>最高档位</span><b id="overTier">V1</b></div>
+          <div><span>最后的枪</span><b id="overGun">手枪</b></div>
+        </div>
+        <div class="over-note">换枪清零的是等级，不是命。<br>下一次，先看清是什么编队再选门。</div>
+        <button id="againBtn">再 冲 一 次</button>
       </div>
 
       <div id="rotate">
@@ -391,6 +476,11 @@
    P3.4 丧尸波：5 列分布、屏外 z=10.5 生成、四阶段接近
    P3.5 三种编队（尸潮 / 混编 / 精锐）的密度 · 体积 · 绿度差异
    P3.6 顶部阅读区直接画个体，不做远景剖面
+   P4.1 武器表 / k 表 / 等级倍数（步枪 · 霰弹 · 狙击，升级 +20% 线性）
+   P4.2 战斗结算：覆盖列求和 → 逐只累计 → 一格一格掉人 → 死亡判定
+   P4.3 战斗表现：火力线击杀、冲脸扑击、战士被撞退、枪口火光、曳光弹
+   P4.4 武器门：琥珀金门面（枪名 + 等级 + 矢量 ↑/⇄），只能和人数门配对
+   P4.5 开局重置 / 结算面板 / 编队预计损耗（HUD 第三行）
 
    【架构变更 · 取代伪 3D 透视】
    镜头改为**正俯视**：桥面铺满 90% 以上屏宽，世界是平面的、线性滚动的。
@@ -474,6 +564,75 @@ const PAL = {
   muzzle:    "#FAC775",
   blood:     "#8C4A3F",
   shadow:    "rgba(30,40,54,.22)"
+};
+
+/* =========================================================================
+   P4.1 · 武器与战斗数值（§6.3 / §6.4 / §7.1.2）
+   -------------------------------------------------------------------------
+   三条枪不是"一条线往上爬的四个档"，而是**三种性格**：净输出几乎相等，
+   差别在"攻速和伤害怎么分配"。所以 k 必须按编队查表，而不是一个数。
+   ========================================================================= */
+const WEAPONS = {
+  /* 手枪是地板，不是流派：k 固定 1.5，三个编队都是 1.5，永不升级、永不进门。 */
+  pistol:  { name: "手枪",   k: { horde: 1.5, mixed: 1.5, elite: 1.5 }, rate: 3.0, pellets: 1, up: false },
+  rifle:   { name: "步枪",   k: { horde: 4.0, mixed: 3.0, elite: 2.4 }, rate: 3.0, pellets: 1, up: true },
+  shotgun: { name: "霰弹枪", k: { horde: 6.0, mixed: 3.0, elite: 1.2 }, rate: 1.2, pellets: 5, up: true },
+  sniper:  { name: "狙击枪", k: { horde: 1.6, mixed: 3.0, elite: 6.0 }, rate: 0.5, pellets: 1, up: true }
+};
+const GUN_ORDER = ["rifle", "shotgun", "sniper"];   // 武器门里只会出现这三把
+
+/* k = 基础 k（按编队查表）× (1 + 0.2×(等级−1))
+   线性而不是复利：Lv10 是 ×2.8，Lv20 是 ×4.8 —— 可控。
+   换成 1.2^N 的话，Lv10 就是 ×5.2、Lv20 是 ×32，一局之内就崩了。 */
+const levelMul = (lv) => 1 + 0.2 * (Math.max(1, lv) - 1);
+function kOf(gun, form, lv) {
+  if (gun === "pistol") return 1.5;
+  const w = WEAPONS[gun] || WEAPONS.pistol;
+  return (w.k[form] || w.k.horde) * levelMul(lv);
+}
+
+const COMBAT = {
+  /* ---- 每波消耗比例 α ----
+     文档的 0.18 + 0.00085t 是按"每 4 秒一道门、每道门 ×2"的快节奏标定的。
+     v0.20 把门距压到 6–8 秒、单门涨幅压到 +40% 之后，那套 α 会让第一波
+     就吃掉三成人 —— 玩家在 40 秒内必死。所以α 起点从 0.18 降到 0.05，
+     斜率 0.0009/s，封顶 0.40。
+     实测（无头模拟 · 每帧最优走位的机器人）见 §13 的 P4 验收行。 */
+  alpha: (t) => Math.min(0.05 + 0.0009 * t, 0.55),
+  /* ---- 基准生命 K(t)：每分钟 ×1.6 ----
+     **和文档同一个数，但换了个理由。** 文档的 1.6 建立在"玩家 k 每分钟
+     涨 1.44"上；本作实测玩家 k 只涨 1.25–1.3（门距 6–8 秒、45% 的门带武器门、
+     其中 60% 同类）。所以 K 的 1.6 在这里**不是**慢于玩家的追赶速度，
+     而是刚好压在"复利差 16%"这条线上：玩家每分钟涨 30%，丧尸涨 60%。
+     实测（无头模拟 · 每帧最优走位的机器人）峰值 2.5 万、约 6:20 阵亡，
+     比真机强 1–1.5 分钟，留给真人正好 4–5 分钟一局。 */
+  K: (t) => 3.0 * Math.pow(1.9, t / 60),
+  /* ---- 时间下限：防止"故意不成长" ----
+     3 而不是文档的 30：开场 12 秒只有 11 个人，30 战斗力等于第一波就团灭。
+     它现在只负责"开场别让玩家站着不动也安全"，中后期由 α·K·N^0.9 接管。 */
+  floor: (t) => 3.0 * Math.pow(1.6, t / 120),
+  /* ---- 人数指数 0.9（**对文档的一处刻意偏离**）----
+     文档写 M = α·N·K，即 M 与人数成正比。那样每波消耗恰好是 N 的固定比例
+     （α·K/k），**人数对存活一点用都没有**：5 人和 5 万人都掉同样的百分比，
+     只有 k 能改变命运。于是最优策略是"永远不选人数门"，而人数恰恰是这款
+     游戏的全部分数和全部视觉 —— 那等于把主循环作废。
+
+     0.9 次方让"人多真的更能扛"：消耗比例 ∝ N^-0.1，
+     百人队比十人队少掉 21% 的相对损耗，十万人再少 60%（边际递减，不会无敌）。
+     这条同时让 §7.2 那张表重新成立 ——「人数 × k = 这一队能扛住的最大战斗力」。 */
+  N_EXP: 0.9,
+  wavePower(t, n) {
+    return Math.max(
+      Math.round(this.alpha(t) * this.K(t) * Math.pow(Math.max(1, n), this.N_EXP)),
+      Math.round(this.floor(t))
+    );
+  },
+  /* ---- 火力线（击杀线）----
+     文档公式 2.0 + (k−1.5)×1.6 是对的，但正俯视纵深只有 9.68 m：
+     k > 5.9 之后算出来的接触点会跑到屏幕外，玩家反而看不见"我变强了"。
+     所以上端钳到 VIEW_Z − 1.4 = 8.28 m（视野里最靠上的位置）。
+     超过之后"变强"不再体现为距离，而体现为击杀密度。 */
+  hitLine: (k) => clamp(2.0 + (k - 1.5) * 1.6, 1.35, VIEW_Z - 1.4)
 };
 
 /* ---------- 小工具 ---------- */
@@ -908,8 +1067,12 @@ function drawSoldier(px, py, form, color, opts) {
   // 现在头盔压住枪托和机匣后半段，只露出前方枪管，读起来才是"端枪"。
   // 枪整体向右偏 12 px：抵右肩的姿势。完全居中会跟头盔正面重叠，
   // 看起来像从脑子里长出来的；偏到肩外又读不出端着。
-  drawWeapon(px + 12, py - 15, o.weapon || "pistol", w, o.gunScale == null ? 1 : o.gunScale);
-  // 双臂抓着枪，画在枪上方
+  // weapon: null = 空手（倒下的战士用，尸体手里不该还端着枪）
+  if (o.weapon !== null) {
+    drawWeapon(px + 12, py - 15, o.weapon || "pistol", w, o.gunScale == null ? 1 : o.gunScale);
+  }
+  // 双臂始终画：空手（倒下的战士）只是没有枪可握，不能连手臂一起没有，
+  // 否则尸体读成"一个紫方块"而不是"一个倒下的人"。
   drawArms(px, py, w, team);
 
   // 头盔与面甲不是一颗圆点：外壳、护目条、面罩、顶部识别带分开绘制。
@@ -1061,7 +1224,13 @@ const Squad = {
   peakTier: 1,         // 视觉档位棘轮，永不回落
   flash: 0,            // 换挡闪白剩余秒数
   pulse: 0,            // 封顶后的人数脉冲（§6.1.3）
-  weapon: "pistol", level: 1, k: 1.5, formation: null
+  /* ---- P4：武器 ----
+     level 只对非手枪有效；手枪等级恒为 1（它不可升级）。
+     k 是"对本波编队"的有效倍率缓存，update 里刷新，只给 HUD / 火力线用。
+     hurtAcc 是伤害小数累加器：每只丧尸带的是 power，除以 k 之后是"该掉几个人"，
+     攒够 1 才真掉 —— 这就是 §6.4.4 的 ceil(M/k) 落在逐个体上的写法
+     （每只单独 ceil 会让 24 只的波凭空多掉 24 人）。 */
+  weapon: "pistol", level: 1, k: 1.5, hurtAcc: 0
 };
 
 /* 队形里的一个成员能站到多外侧 —— 这是"不能移动到桥外"的唯一出口。
@@ -1132,6 +1301,10 @@ function squadMembers() {
 }
 
 function drawSquad(t) {
+  /* 全队打光之后一个都不画。
+     formationLayout 会把 n 钳到 ≥1（队形至少要有一个锚点），
+     所以要在这里单独挡 —— 否则死透了还站着一个孤零零的战士。 */
+  if (Squad.count <= 0 && Squad.shown <= 0.4) return;
   const v = Squad.peakTier;
   const form = tierForm(v), color = tierColor(v);
   const mem = squadMembers();
@@ -1246,8 +1419,14 @@ const FORMATIONS = {
 let zombies = [];               // 场上全部丧尸
 let waveTimer = 0;              // 距下一波的秒数
 let waveCount = 0;
+let wavePower = 0;              // 最近一波的战斗力（生成时锁死，调试/HUD 用）
 let curFormation = "horde";
 let lastFormation = null, formStreak = 0;
+
+/* 第一波 12 秒才来：P3 是 3.2 秒（那时丧尸不扣人，只是背景）。
+   P4 接上真实战斗之后，前 10 秒必须留给"读门 + 走位"——
+   人数只有 5 的时候来一波怪，第一波就是死。 */
+const FIRST_WAVE_DELAY = 12;
 
 function waveGap() {
   /* 一波丧尸从入场到全部越过接触线约 2.7 秒。间隔 4.2 → 3.2 秒，
@@ -1309,29 +1488,192 @@ function spawnWave() {
   // 精锐要稀疏：壮汉之间再拉开一点，避免两只挤在同一格读成一只
   if (key === "elite") for (const z of list) z.z += rand(-0.5, 0.5);
 
+  /* ---- P4：这一波的战斗力在**生成这一刻**算完并写死（§7.1.2 实现红线）----
+     M_wave 只读生成瞬间的 N。写死之后，玩家在遭遇战里掉人，这波怪不会跟着变弱；
+     否则"越弱越安全"，玩家会主动送人换安全。
+
+     M = max(α × N × K, 时间下限)
+       α 是"这一波该吃掉多少比例"，K 是"基准枪的倍率"。
+       **分母用的是基准 K，不是玩家自己的 k** —— 这是武器系统不失效的唯一原因：
+       如果 M 直接乘玩家的 k，换更强的枪只会让丧尸同步变强，武器就退化成纯视觉。 */
+  const N = Math.max(1, Math.round(Squad.count));
+  const M = COMBAT.wavePower(simT, N);
+
+  /* 把总战斗力按"个体权重"摊到每只身上：普通 1、壮汉 6。
+     摊完每只才有自己的 power，于是"队伍覆盖哪几列，就扣哪几列的 power 之和"
+     在逐个体层面自然成立（§6.4.2），不需要再单独维护一份列权重表。 */
+  const wsum = list.reduce((s, zb) => s + (zb.big ? 6 : 1), 0);
+  for (const zb of list) {
+    zb.power = M * (zb.big ? 6 : 1) / wsum;
+    zb.form = key;
+    zb.wave = waveCount;
+    zb.done = false; zb.die = ""; zb.dt = 0; zb.breach = false;
+  }
+
+  /* 冲脸名额：每波固定放 1 / 2 / 3 只冲过火力线、扑到队伍身上。
+     没有它们，玩家永远看不到"丧尸咬人"—— 人数掉了却找不到是谁咬的，
+     读起来像凭空蒸发。优先挑壮汉：体积大、走得慢，冲到眼前那一下最有说服力。 */
+  const cand = list.slice().sort((a, b) => (b.big ? 1 : 0) - (a.big ? 1 : 0));
+  const nb = key === "elite" ? 3 : key === "mixed" ? 2 : 1;
+  for (let i = 0; i < Math.min(nb, cand.length); i++) cand[i].breach = true;
+
+  wavePower = M;
   zombies = zombies.concat(list);
   return key;
 }
 
+/* =========================================================================
+   P4.2 · 战斗结算（§6.4.2 / §6.4.4）
+   -------------------------------------------------------------------------
+   全部战斗只有一句话：**消耗人数 = ceil(覆盖列的战斗力之和 ÷ k)**。
+   没有血量条、没有 DPS、没有暴击 —— 玩家只需要做一次除法。
+
+   但"覆盖列"必须每帧现算，因为它就是横向操作的收益：
+   队伍宽 1.6 m，站在中线覆盖 3 列（约 67% 的波），贴到边上只覆盖 2 列（约 37%）。
+   躲开厚的那一列，这一波就少掉一半人 —— 这是 §4.4.3"只有左右一个轴"
+   在战斗里兑现价值的唯一位置。
+   ========================================================================= */
+/* 覆盖半径：队形半宽 + 0.30 m。
+   不用"列中心落在队形宽度内"的严格判断（FORM_HALF = 0.80，列距 1.06），
+   那会让中线只覆盖 1 列 —— 队伍看上去明明横跨三列。
+   +0.30 相当于"列宽的一半再收一点"，读感和画面一致。 */
+const SQUAD_REACH = FORM_HALF + 0.30;
+function colCovered(col) {
+  return Math.abs(ZOMB.colX[col] - Squad.x) <= SQUAD_REACH;
+}
+function kFor(form) {
+  return kOf(Squad.weapon, form || curFormation || "horde", Squad.level);
+}
+
+/* 逐只结算：把这只的战斗力折算成"该掉几个人"，攒够整数才真掉。
+   **为什么不直接 ceil(power / k) 每只扣一次**：一波 24 只，每只都向上取整，
+   会凭空多掉最多 23 人 —— 早期人数只有几十的时候，这等于每波多死半队。
+   累计到整数才掉，总量正好是 floor(Σpower/k)，与 ceil(M/k) 只差 1 人。
+
+   **必须 O(1)**：第一版写的是 `while (acc >= 1 && n < 24) count--`，
+   想用 24 的上限防止一帧掉太多。结果人数到十万之后，一波 24 只每只最多掉
+   24 人 = 576 人 —— 相对几十万等于挠痒，玩家永远死不了（实测跑满 7 分钟
+   人数到 1e10 还在涨）。现在直接 floor 一次减掉，同时把可视伤亡钳在 6 个。
+
+   **单波上限 55%**：伤害 ∝ N，所以只要 α·K/k > 1，一波就能吃掉八成。
+   那读起来是"瞬间暴毙"，不是"被压垮"。按波封顶之后，任何一波最多吃掉
+   55%，死亡至少要跨 2–3 波 —— 玩家会看见数字连着掉三轮才归零，
+   这段时间正好用来后悔"上一对门我该选枪"。 */
+const waveHit = new Map();          // waveId → { taken, n0 }
+function addHitPower(p, k, waveId) {
+  if (Squad.count <= 0 || phase !== "PLAY") return;
+  Squad.hurtAcc += p / Math.max(0.4, k);
+  let take = Math.floor(Squad.hurtAcc);
+  if (take <= 0) return;
+  Squad.hurtAcc -= take;
+
+  let rec = waveHit.get(waveId);
+  if (!rec) { rec = { taken: 0, n0: Squad.count }; waveHit.set(waveId, rec); }
+  const cap = Math.max(1, Math.ceil(rec.n0 * 0.55)) - rec.taken;
+  if (cap <= 0) return;                     // 这一波已经吃够了，剩下的记在 hurtAcc 里
+  take = Math.min(take, cap);
+  rec.taken += take;
+
+  if (take >= Squad.count) {
+    Squad.count = 0;
+    spillCasualties(6);
+    gameOver();
+    return;
+  }
+  Squad.count -= take;
+  spillCasualties(take);
+  Squad.pulse = 0.16;
+  hudBump();
+  if (waveHit.size > 6) {
+    for (const key of waveHit.keys()) if (key <= waveId - 5) waveHit.delete(key);
+  }
+}
+
+/* 这一波还剩多少战斗力会落到队伍身上 —— HUD 的"预计 −x%"和自检都用它。
+   只统计**还没结算、且所在列被覆盖**的那些，所以玩家一边走位一边就能看见
+   这个百分比在变小：这是横向操作唯一需要被即时反馈的东西。 */
+function previewLoss() {
+  let lead = null;
+  for (const zb of zombies) {
+    if (zb.done) continue;
+    if (!lead || zb.z > lead.z) lead = zb;
+  }
+  if (!lead) return null;
+  const k = kFor(lead.form);
+  let p = 0;
+  for (const zb of zombies) {
+    if (zb.done || zb.wave !== lead.wave) continue;
+    if (colCovered(zb.col)) p += zb.power;
+  }
+  return { form: lead.form, k, deaths: p / k, frac: p / k / Math.max(1, Squad.count) };
+}
+
 function updateZombies(dt) {
-  waveTimer -= dt;
-  if (waveTimer <= 0) {
-    spawnWave();
-    waveTimer = waveGap();
+  if (phase === "PLAY") {
+    waveTimer -= dt;
+    if (waveTimer <= 0) {
+      spawnWave();
+      waveTimer = waveGap();
+    }
   }
 
-  // 丧尸自身速度随时间 0.6 → 1.4 m/s，叠加世界滚动（§7.1）
+  // 丧尸自身速度随时间 0.35 → 1.1 m/s，叠加世界滚动（§7.1）
   const selfSpeed = ZOMB.walkMin + Math.min(simT / 60, 1) * (ZOMB.walkMax - ZOMB.walkMin);
   const advance = (SCROLL + selfSpeed) * dt;
 
   for (let i = zombies.length - 1; i >= 0; i--) {
     const zb = zombies[i];
+
+    /* 已结算 = 尸体。**尸体只受世界滚动影响，不再自己走**。
+       这一条不只是省事：世界在向前，尸体当然被落在后面 ——
+       它会自己往屏幕下方滑走，读起来就是"我们把它甩在后面了"。
+       如果尸体也按 advance 走，它会追着队伍跑，变成"打不死的怪"。 */
+    if (zb.done) {
+      zb.z -= SCROLL * dt;
+      zb.dt += dt;
+      if (zb.dt > 1.1 || zb.z < -1.9) zombies.splice(i, 1);
+      continue;
+    }
+
     zb.z -= advance;
     // 壮汉摇晃更慢 —— 视觉上就"重"（§10.5）
     zb.ph += dt * (zb.big ? 2.1 : 3.4);
     if (zb.hit > 0) zb.hit -= dt;
-    // 接触后继续向画面下方跑出：P3 还不结算人数（P4 接真实战斗）
-    if (zb.z < -1.6) zombies.splice(i, 1);
+
+    const k = kFor(zb.form);
+    /* 火力线：k 越大，子弹越早把它按住。这是玩家唯一能**直接看见**的升级反馈
+       —— 换一把好枪，尸潮就在更远的地方成片倒下，不需要读任何数字（§6.4.3）。 */
+    const zl = COMBAT.hitLine(k);
+
+    if (!zb.breach && zb.z <= zl && zb.z > -0.3 && colCovered(zb.col)) {
+      zb.done = true; zb.dt = 0;
+      zb.die = "shot";
+      const p = project(zb.x, zl);
+      burst(p.x, p.y, zb.big ? "#E0A791" : "#BFD9A2", zb.big ? 11 : 6);
+      addHitPower(zb.power, k, zb.wave);
+      continue;
+    }
+
+    /* 冲脸的那几只无视火力线，一路扑到队伍跟前才结算。
+       这是"被咬"唯一可见的来源，也是 k 太低时最直观的惩罚。 */
+    if (zb.breach && zb.z <= 0.35) {
+      zb.done = true; zb.dt = 0; zb.die = "lunge";
+      if (colCovered(zb.col)) {
+        const p = project(zb.x, zb.z);
+        burst(p.x, p.y, "#D9484F", 8);
+        addHitPower(zb.power, k, zb.wave);
+      }
+    }
+
+    /* 漏网的那只**一直往前跑**，跑到队伍身侧才淡出。
+       第一版在这里就把它标成"已结算"，结果它停在火力线上原地消散 ——
+       玩家看到的是"丧尸走到半路自己蒸发了"，而不是"我没扫到那一列"。
+       不覆盖就不结算、继续冲，这才是"躲开一列"能读懂的前提。
+       （覆盖判定每帧都算：跑动中途补上火力，仍然会被打倒。） */
+    if (zb.z < -0.6) {
+      zb.done = true; zb.dt = 0; zb.die = "pass";
+      continue;
+    }
   }
 }
 
@@ -1365,17 +1707,29 @@ function drawZombie(px, py, zb) {
   ctx.save();
   /* 上下两端都淡出：
      顶端 —— 从画布上方进场时不要"啪"地出现（HUD 也压在那里）；
-     底端 —— 越过接触线之后快速淡掉。
-     P3 还不扣人（战斗在 P4），但"跑过去了就不该还在"这条必须现在就对。 */
-  ctx.globalAlpha = clamp((py + 46) / 56, 0, 1) * clamp((0.9 + zb.z) / 0.9, 0, 1);
+     底端 —— 越过接触线之后快速淡掉。 */
+  /* 死亡态（P4）：
+       shot  —— 在火力线上被按住，0.30 秒里向前压扁（**向前扑倒，不是向后倒**），
+                然后随世界滑走并淡出；
+       lunge —— 冲脸的那只扑到队形上，同一套压扁但更快更狠；
+       pass  —— 漏网的那只从队伍旁边跑过去，**不做任何压扁**，只淡出。
+                形状不变才读得出"它还活着，只是从旁边过去了"——
+                这一条是玩家相信自己"躲开了一列"的唯一证据。 */
+  let fall = 0, fade = 1;
+  if (zb.done) {
+    if (zb.die === "pass") {
+      fade = clamp(1 - zb.dt / 0.9, 0, 1);
+    } else {
+      const s = zb.die === "lunge" ? 0.20 : 0.30;
+      fall = clamp(zb.dt / s, 0, 1);
+      fade = clamp(1 - (zb.dt - 0.32) / 0.62, 0, 1);
+    }
+  } else if (zb.breach) {
+    fall = clamp((1.2 - zb.z) / 1.2, 0, 1);
+  }
+  ctx.globalAlpha = clamp((py + 46) / 56, 0, 1) * clamp((0.9 + zb.z) / 0.9, 0, 1) * fade;
   ctx.translate(px, py);
 
-  /* 扑倒：z 从 1.2 掉到 0 的最后 0.33 秒，整体压扁并向前摊开。
-     §6.4.3 要求"丧尸向前扑倒，不是向后倒——它们是冲过来的"。
-     P3 没有战斗结算，但**这一下形变必须现在就有**：
-     否则玩家看到的是"丧尸从队伍身上穿过去"，读起来像一个穿模 bug，
-     而不是"它扑上来了"。P4 接入 `Combat` 后只往这里加结算和时间轴。 */
-  const fall = clamp((1.2 - zb.z) / 1.2, 0, 1);
   if (fall > 0) {
     ctx.translate(0, bodyW * .10 * fall);
     ctx.scale(1 + fall * .30, 1 - fall * .58);
@@ -1579,6 +1933,38 @@ function mulVsDiv() {
   return Math.random() < 0.5 ? [l, r] : [r, l];
 }
 
+/* =========================================================================
+   P4.4 · 武器门（§6.2.3 / §6.2.5）
+   -------------------------------------------------------------------------
+   武器门是**唯一一道"负向的正向门"**：它给资源，但可能拿走累积。
+   所以它必须把"清零"写在门上 —— 玩家穿过去之后才发现掉级，那是被骗；
+   事前看到 `⇄`，那是他自己选的。**所有惩罚都必须前置成信息。**
+
+   门面永远显示"穿过去之后的确切状态"：
+     同类枪 → `步枪 Lv3 ↑`（保留累积，升一级）
+     异类枪 → `步枪 Lv1 ⇄`（换成它，等级从头算）
+   ========================================================================= */
+const WEAPON_FROM = 24;          // 24 秒之前不刷武器门（先学会比大小）
+let lastWeaponGate = null;       // 上一次刷出的枪种
+let weaponShown = 0;
+
+function makeWeaponGate() {
+  let gun;
+  /* 60% 沿用上一次武器门的枪种（§6.2.5）。
+     没有这条连续性，一局里同一把枪平均只出现 1.6 次，升级系统形同虚设；
+     有了它，玩家会看到"连着两道步枪门"，于是自然产生"后面可能还有第三道"
+     这个念头 —— 那个念头就是赌博的本体。 */
+  if (lastWeaponGate && Math.random() < 0.6) {
+    gun = lastWeaponGate;
+  } else {
+    const pool = GUN_ORDER.filter((g) => g !== lastWeaponGate);
+    gun = pool[(Math.random() * pool.length) | 0];
+  }
+  lastWeaponGate = gun;
+  const up = gun === Squad.weapon;       // 手枪永远不是"同类"，所以开局必是 ⇄
+  return { op: "weapon", gun, level: up ? Squad.level + 1 : 1, up };
+}
+
 function makePair() {
   const m = Math.max(1, Math.round(Squad.count));
   /* 开场教学期与人数极少时不出陷阱门：
@@ -1586,17 +1972,36 @@ function makePair() {
      m ≤ 3 时 -n 也只是擦破皮，玩家会学到"陷阱不用怕"这个错的结论。 */
   const noTrap = simT < 20 || m <= 3;
   const t = simT, r = Math.random();
-  let left, right;
+  let left, right, kind;
 
-  if (t < 30) {
+  /* ---- 配比：终版 40 / 45 / 15，按时间逐步解锁（§6.2.4 / §6.2.4.1）----
+       0–24 s    加法对 100%      只做"两个个位数谁大"
+       24–60 s   加法 55 / 武器 30 / ×2对 15
+       60–100 s  加法 40 / 武器 35 / ×2对 15 / 陷阱 10
+       100 s +   加法 25 / 武器 45 / ×2对 15 / 陷阱 15   ← 40 / 45 / 15
+     武器门**只能和人数门配对**（硬规则 3）：和陷阱贴在一起时，
+     唯一解永远是武器，那道门就是凑数的，而且红门和琥珀门的颜色语义会互相污染。 */
+  if (t < WEAPON_FROM) kind = "add";
+  else if (t < 60) kind = r < .55 ? "add" : r < .85 ? "weapon" : "muladd";
+  else if (t < 100) kind = r < .40 ? "add" : r < .75 ? "weapon" : r < .90 ? "muladd" : "muldiv";
+  else kind = r < .25 ? "add" : r < .70 ? "weapon" : r < .85 ? "muladd" : "muldiv";
+  if (noTrap && kind === "muldiv") kind = "muladd";
+
+  /* 保底：第 3 组门（约 20 秒）第一次必带武器门。
+     拿着 k=1.5 的手枪撑到 60 秒时，对面 K 已经涨到 4.6 —— 那几波纯粹是挨打，
+     而玩家还没被"教"过武器门长什么样。第一次必须由系统递到手里。 */
+  if (kind !== "weapon" && weaponShown === 0 && t >= 20 && pairCount >= 2) kind = "weapon";
+
+  if (kind === "weapon") {
+    const wg = makeWeaponGate();
+    /* 对面那道人数门系数 0.20 ⇒ 给 m 的 16%–24%，和"升一级 k（+20%）"
+       势均力敌。这一对门的全部张力就是"我现在缺人还是缺枪"。 */
+    const num = { op: "add", value: addValue(0.20, m) };
+    [left, right] = Math.random() < .5 ? [wg, num] : [num, wg];
+    weaponShown++;
+  } else if (kind === "add") {
     [left, right] = smallAddPair(m);
-  } else if (t < 60) {
-    [left, right] = r < 0.85 ? smallAddPair(m) : mulVsAdd(m);
-  } else if (t < 100) {
-    [left, right] = r < 0.55 ? smallAddPair(m) : r < 0.90 ? mulVsAdd(m) : mulVsDiv();
-  } else if (noTrap || r < 0.35) {
-    [left, right] = smallAddPair(m);
-  } else if (r < 0.80) {
+  } else if (kind === "muladd") {
     [left, right] = mulVsAdd(m);
   } else {
     [left, right] = mulVsDiv();
@@ -1657,20 +2062,42 @@ function resolvePair() {
   pair.hitSide = g === pair.left ? -1 : 1;
 
   const before = Squad.count;
-  const label = gateLabel(g);
+  const isW = g.op === "weapon";
   applyGate(g);
   const after = Squad.count;
-  const color = g.op === "sub" || g.op === "div" ? PAL.pink : PAL.teal;
 
   const cx = W / 2 + (g === pair.left ? -GATE.cx : GATE.cx) * PPM;
-  burst(cx, SQUAD_Y - 24, color, 26);
-  addFloater(label, cx, SQUAD_Y - 56, color, 40);
-  addFloater((after >= before ? "+" : "") + (after - before), cx, SQUAD_Y - 104, "#ffffff", 30);
+  if (isW) {
+    /* 武器门给的"+1 级"没法用数字表达，只能靠文案：
+       第一行是"你成了什么枪、几级"，第二行是这一脚的性质（↑ / ⇄）。
+       这个顺序和门面上完全一致 —— 玩家在门里读到的和飘出来的是同一句话。 */
+    burst(cx, SQUAD_Y - 24, "#F0B03C", 30);
+    addFloater((WEAPONS[g.gun] || WEAPONS.rifle).name + " Lv" + g.level, cx, SQUAD_Y - 58, "#F6C25E", 34);
+    addFloater(g.up ? "↑ 升级" : "⇄ 换枪", cx, SQUAD_Y - 102, g.up ? "#FFFFFF" : "#F6C25E", 26);
+    /* 升级轻快、换枪沉重（§6.3.10）：换枪的闪白更长更冷，读成"重新上膛"。 */
+    Squad.flash = g.up ? 0.30 : 0.46;
+    hudGunFlash(g.up);
+  } else {
+    const color = g.op === "sub" || g.op === "div" ? PAL.pink : PAL.teal;
+    burst(cx, SQUAD_Y - 24, color, 26);
+    addFloater(gateLabel(g), cx, SQUAD_Y - 56, color, 40);
+    addFloater((after >= before ? "+" : "") + (after - before), cx, SQUAD_Y - 104, "#ffffff", 30);
+  }
   Squad.pulse = 0.22;                // 队伍整体弹一下：确认"这一脚真的算数了"
   hudBump();
 }
 
 function applyGate(g) {
+  if (g.op === "weapon") {
+    /* 门面写死了"穿过去之后的确切状态"，照着赋就行 ——
+       玩家看到的 = 得到的。这里绝不能改成"按当前等级 +1"，
+       否则门面显示的等级和实际结果会在换枪那一瞬对不上（§6.2.3 硬规则）。 */
+    Squad.weapon = g.gun;
+    Squad.level = Math.max(1, g.level);
+    Squad.k = kFor(curFormation);
+    updateHudWeapon();
+    return;
+  }
   const n = Math.max(1, Math.round(Squad.count));
   if (g.op === "add") Squad.count = n + g.value;
   else if (g.op === "sub") Squad.count = Math.max(1, n - g.value);
@@ -1689,6 +2116,8 @@ function gateLabel(g) {
   if (g.op === "sub") return "−" + abbr(g.value);
   if (g.op === "mul") return "×" + g.value;
   if (g.op === "div") return "÷" + g.value;
+  // 武器门没有数字，标签只给调试面板和自检用
+  if (g.op === "weapon") return (WEAPONS[g.gun] || WEAPONS.rifle).name + "Lv" + g.level + (g.up ? "↑" : "⇄");
   return "";
 }
 
@@ -1729,6 +2158,125 @@ function gatePath(x0, y0, wpx, hpx, r, side, closed) {
   if (closed) ctx.closePath();
 }
 
+/* ---------- 武器门的正面（§6.2.3）----------
+   一道武器门要在 223×155 px 里说清三件事：**什么枪、几级、是升级还是换枪**。
+   所以它是唯一有三行的门：剪影（是什么）→ 枪名 + 等级（变成什么）→ 箭头（代价）。
+
+   ↑ 和 ⇄ 都用**矢量**画，不用字符：`⇄` 在部分系统中文字体里会退化成
+   一条横线或被替换成方块，而这道门的全部信息都在那个符号上。
+
+   颜色上只用了一种主色（琥珀），靠"形状 + 文字"二次区分。
+   文档原写"↑ 绿、⇄ 黄"，但绿色在本作里已经是"正向人数门"的语义，
+   在琥珀门里放一个绿箭头会读成"这扇门是两道门拼起来的"。 */
+function gunGlyph(cx, cy, w, gun, color) {
+  const s = w / 30;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s, s);
+  ctx.translate(-15, -8);
+  ctx.fillStyle = color;
+  const R = (x, y, ww, hh, o) => { ctx.globalAlpha = o == null ? 1 : o; ctx.fillRect(x, y, ww, hh); };
+  if (gun === "rifle") {
+    R(1, 6.2, 21, 3.4); R(6, 9.4, 5, 5); R(9, 4.6, 10, 1.6, .55); R(21, 6.8, 8, 2.2, .75);
+  } else if (gun === "shotgun") {
+    R(1, 5.4, 27, 2.6); R(1, 8.4, 27, 2.6, .55); R(4, 4.4, 7, 8, .8);
+  } else if (gun === "sniper") {
+    R(1, 6.2, 6, 3.8); R(6, 7.4, 22, 2); R(11, 4.2, 8, 2.4); R(15, 9.2, 3.2, 4.2);
+  } else {
+    R(5, 4, 13, 4.2); R(6.5, 8, 5, 6); R(14, 8.2, 4, 2.6, .45);
+  }
+  ctx.restore();
+}
+
+function arrowUpGlyph(cx, cy, size, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, size * .24);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const h = size * .52;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + h); ctx.lineTo(cx, cy - h);
+  ctx.moveTo(cx - h * .80, cy - h * .18);
+  ctx.lineTo(cx, cy - h);
+  ctx.lineTo(cx + h * .80, cy - h * .18);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function arrowSwapGlyph(cx, cy, size, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, size * .18);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const half = size * .54, dy = size * .34, a = size * .19;
+  // 两条反向箭头：上排向左、下排向右。dir = 箭头指向
+  const row = (y, dir) => {
+    ctx.beginPath();
+    ctx.moveTo(cx - half * dir, y);
+    ctx.lineTo(cx + half * dir, y);
+    ctx.moveTo(cx + half * dir - a * dir, y - a);
+    ctx.lineTo(cx + half * dir, y);
+    ctx.lineTo(cx + half * dir - a * dir, y + a);
+    ctx.stroke();
+  };
+  row(cy - dy, -1);
+  row(cy + dy, 1);
+  ctx.restore();
+}
+
+function drawGateWeaponFace(g, px, py) {
+  /* 枪的剪影**必须装在一个框里**。
+     第一版直接把它当水印画在门上部（58 px 宽、30% 白），结果那把细长的
+     狙击枪只剩一条横杠 + 一个凸起的瞄镜，读成一个"T"或者一个箭头 ——
+     玩家会以为那是符号的一部分，而不是"这是一把枪"。
+     加了 40×22 的暗底 + 发丝框之后，它和左上角铭牌里的枪位是同一个语言：
+     **框里 = 我的枪**。同一个符号在两处出现，玩家不用学第二遍。 */
+  const chipW = 58, chipH = 26, cy = py - 46;
+  roundRect(ctx, px - chipW / 2, cy - chipH / 2, chipW, chipH, 3);
+  ctx.fillStyle = "rgba(24,13,2,.34)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,224,170,.55)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  gunGlyph(px, cy, 40, g.gun, "#FFE9C4");
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+
+  // 第一行：枪名 + 等级。这是全门最大的一行信息
+  const name = (WEAPONS[g.gun] || WEAPONS.rifle).name + " Lv" + g.level;
+  const s1 = 26;
+  ctx.font = "800 " + s1 + "px -apple-system,\"PingFang SC\",\"Microsoft YaHei\",sans-serif";
+  ctx.lineWidth = s1 * .16;
+  ctx.strokeStyle = "rgba(8,18,24,.72)";
+  ctx.strokeText(name, px, py - 6);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(name, px, py - 6);
+
+  // 第二行：箭头 + 两个字的说明。空心箭头单独一个人读不出"升级还是换枪"
+  const up = g.up;
+  const aColor = up ? "#F2FFF7" : "#FFC65C";
+  const label = up ? "升级" : "换枪";
+  const s2 = 26, lw = 17;
+  ctx.font = "700 " + lw + "px -apple-system,\"PingFang SC\",\"Microsoft YaHei\",sans-serif";
+  const tw = ctx.measureText(label).width;
+  const gap = 10;
+  const total = s2 + gap + tw;
+  const x0 = px - total / 2;
+  if (up) arrowUpGlyph(x0 + s2 / 2, py + 34, s2, aColor);
+  else arrowSwapGlyph(x0 + s2 / 2, py + 34, s2, aColor);
+
+  ctx.textAlign = "left";
+  ctx.lineWidth = 3.4;
+  ctx.strokeStyle = "rgba(8,18,24,.66)";
+  ctx.strokeText(label, x0 + s2 + gap, py + 35);
+  ctx.fillStyle = aColor;
+  ctx.fillText(label, x0 + s2 + gap, py + 35);
+}
+
 function drawGate(g, side, z, alpha) {
   const cx = side * GATE.cx;
   const p = project(cx, z);
@@ -1741,10 +2289,18 @@ function drawGate(g, side, z, alpha) {
   const hh = GATE.d / 2 * PPM;
   const x0 = p.x - hw, y0 = p.y - hh, wpx = hw * 2, hpx = hh * 2;
   const trap = g.op === "sub" || g.op === "div";
+  const isW = g.op === "weapon";
 
-  // 脉冲：陷阱门必须比正向门更抢眼，否则没人会上当（§6.2.4 硬规则 5）
-  const pulse = trap ? 0.80 + 0.20 * Math.sin(simT * 7) : 1;
-  const edge = trap ? "#ED93B1" : "#5DCAA5";
+  /* 三种门的语义色（§6.2.2）：
+       正向人数门 青绿 / 陷阱门 洋红 + 脉冲 / 武器门 琥珀金
+     武器门用**很轻**的呼吸（±6%），不是陷阱那种 ±20% 的心跳：
+     它不是骗局，不需要装得诱人；它只是"值得停下来算一下"。 */
+  const pulse = trap ? 0.80 + 0.20 * Math.sin(simT * 7)
+                     : isW ? 0.94 + 0.06 * Math.sin(simT * 3.2) : 1;
+  const edge = trap ? "#ED93B1" : isW ? "#F0B03C" : "#5DCAA5";
+  const haloRgb = trap ? "237,147,177" : isW ? "240,176,60" : "93,202,165";
+  const bodyRgb = trap ? "140,47,82" : isW ? "96,58,6" : "13,107,76";
+  const litRgb = trap ? "237,147,177" : isW ? "255,205,110" : "120,232,196";
 
   ctx.save();
   ctx.globalAlpha = alpha * pulse;
@@ -1757,7 +2313,7 @@ function drawGate(g, side, z, alpha) {
   if (side < 0) ctx.rect(0, 0, W / 2, H); else ctx.rect(W / 2, 0, W / 2, H);
   ctx.clip();
   const halo = ctx.createRadialGradient(p.x, p.y, hh * .5, p.x, p.y, hw * 1.05);
-  halo.addColorStop(0, trap ? "rgba(237,147,177,.30)" : "rgba(93,202,165,.30)");
+  halo.addColorStop(0, "rgba(" + haloRgb + ",.30)");
   halo.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = halo;
   ctx.fillRect(p.x - hw * 1.3, p.y - hh * 2.0, hw * 2.6, hh * 4.0);
@@ -1765,7 +2321,7 @@ function drawGate(g, side, z, alpha) {
 
   // 近侧拖影：门是从远处扑过来的，脚下要留一道被"扫过"的光带
   const tail = ctx.createLinearGradient(0, y0 + hpx, 0, y0 + hpx + 30);
-  tail.addColorStop(0, trap ? "rgba(237,147,177,.28)" : "rgba(93,202,165,.28)");
+  tail.addColorStop(0, "rgba(" + haloRgb + ",.28)");
   tail.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = tail;
   ctx.fillRect(x0 + 3, y0 + hpx, wpx - 6, 30);
@@ -1774,11 +2330,10 @@ function drawGate(g, side, z, alpha) {
      一块不透明的色块会在它路过的 4 秒里把整片尸潮盖掉，
      玩家看到的是"两张大卡片在桥上滑"，而不是"一道能量幕"。
      所以底色是 62% → 24% 的纵向渐变（上浓下淡），再叠竖条纹当光幕。 */
-  const rgb = trap ? "140,47,82" : "13,107,76";
   const bg = ctx.createLinearGradient(0, y0, 0, y0 + hpx);
-  bg.addColorStop(0, "rgba(" + rgb + ",.62)");
-  bg.addColorStop(.5, "rgba(" + rgb + ",.46)");
-  bg.addColorStop(1, "rgba(" + rgb + ",.24)");
+  bg.addColorStop(0, "rgba(" + bodyRgb + ",.62)");
+  bg.addColorStop(.5, "rgba(" + bodyRgb + ",.46)");
+  bg.addColorStop(1, "rgba(" + bodyRgb + ",.24)");
   ctx.fillStyle = bg;
   gatePath(x0, y0, wpx, hpx, 5, side, true);
   ctx.fill();
@@ -1798,7 +2353,7 @@ function drawGate(g, side, z, alpha) {
   }
   // 近端内侧的一层辉光：让"迎上来"的那半扇门比远端更亮，读成有朝向的光场
   const inGlow = ctx.createLinearGradient(0, y0, 0, y0 + hpx * .45);
-  inGlow.addColorStop(0, trap ? "rgba(237,147,177,.34)" : "rgba(120,232,196,.34)");
+  inGlow.addColorStop(0, "rgba(" + litRgb + ",.34)");
   inGlow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = inGlow;
   ctx.fillRect(x0, y0, wpx, hpx * .45);
@@ -1852,20 +2407,24 @@ function drawGate(g, side, z, alpha) {
     ctx.beginPath(); ctx.arc(bx - 1, by - 1.2, 1.6, 0, Math.PI * 2); ctx.fill();
   }
 
-  /* 数字 / 符号：字号按位数自适应（§6.2.7）。
-     门宽涨到 223 px 之后，四位数也不必再缩到 4% 屏高。 */
-  const text = gateLabel(g);
-  const digits = text.length;
-  const size = (digits <= 2 ? 0.078 : digits === 3 ? 0.064 : 0.050) * H * (trap ? 1.06 : 1);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = "800 " + size.toFixed(1) + "px ui-monospace,Menlo,Consolas,monospace";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = size * .16;
-  ctx.strokeStyle = "rgba(8,18,24,.72)";
-  ctx.strokeText(text, p.x, p.y + 1);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(text, p.x, p.y + 1);
+  if (isW) {
+    drawGateWeaponFace(g, p.x, p.y);
+  } else {
+    /* 数字 / 符号：字号按位数自适应（§6.2.7）。
+       门宽涨到 223 px 之后，四位数也不必再缩到 4% 屏高。 */
+    const text = gateLabel(g);
+    const digits = text.length;
+    const size = (digits <= 2 ? 0.078 : digits === 3 ? 0.064 : 0.050) * H * (trap ? 1.06 : 1);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "800 " + size.toFixed(1) + "px ui-monospace,Menlo,Consolas,monospace";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = size * .16;
+    ctx.strokeStyle = "rgba(8,18,24,.72)";
+    ctx.strokeText(text, p.x, p.y + 1);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(text, p.x, p.y + 1);
+  }
 
   ctx.restore();
 }
@@ -1912,6 +2471,161 @@ function drawGates() {
   drawGate(pair.left, -1, pair.z, aL);
   drawGate(pair.right, 1, pair.z, aR);
   drawGateSeam(pair.z, f * 0.55);
+}
+
+/* =========================================================================
+   P4.3 · 战斗表现：被咬倒下的战士 / 枪口火光 / 曳光弹
+   -------------------------------------------------------------------------
+   数值上人是一格一格掉的，画面上必须有对应的东西掉出去，否则玩家只看见
+   一个数字在减，读起来像扣分而不是"我的人在死"。
+
+   三条约束（§6.4.3）：
+     1. 被咬到的战士**向后翻滚出队形**（向画面下方），然后淡出 ——
+        不是原地消失，也不是向前倒；它们是被冲过来的东西撞退的。
+     2. 倒下的人数量有上限（同时最多 14 个），不然一次掉两百人会把
+        队形整个盖掉，反而看不出"我只剩几个了"。
+     3. 子弹只画**弹头附近的一小段**。从枪口连到目标的整条线会读成激光，
+        而 30 m/s 的曳光在眼里本来就只有一截。
+
+   完整的"每个战士一颗自己的子弹 + 护栏反弹"是 P5 的事；这里只需要
+   "有人在开枪、子弹打到了东西"这两件事成立。
+   ========================================================================= */
+const casualties = [];
+function spillCasualties(n) {
+  const mem = squadMembers();
+  if (!mem.length) return;
+  const v = Squad.peakTier;
+  const K = soldierScale(mem.length);
+  for (let i = 0; i < Math.min(n, 6); i++) {
+    const m = mem[(Math.random() * mem.length) | 0];
+    casualties.push({
+      x: memberX(m.dx) + rand(-.12, .12), z: m.dz, t: 0, life: 0.85,
+      rot: rand(-.26, .26), spin: rand(-1.7, 1.7),
+      drift: rand(-.5, .5), back: rand(1.4, 2.6),     // back：被撞退的米/秒
+      form: tierForm(v), color: tierColor(v), K
+    });
+  }
+  if (casualties.length > 14) casualties.splice(0, casualties.length - 14);
+}
+function updateCasualties(dt) {
+  for (let i = casualties.length - 1; i >= 0; i--) {
+    const c = casualties[i];
+    c.t += dt;
+    c.z -= c.back * dt;
+    c.x += c.drift * dt;
+    c.rot += c.spin * dt;
+    if (c.t >= c.life) casualties.splice(i, 1);
+  }
+}
+function drawCasualties() {
+  for (const c of casualties) {
+    const p = project(c.x, c.z);
+    const k = c.t / c.life;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - k * k) * 0.95;
+    ctx.translate(p.x, p.y);
+    ctx.rotate(c.rot);
+    ctx.scale(1 - k * .22, 1 - k * .22);
+    ctx.translate(-p.x, -p.y);
+    drawSoldier(p.x, p.y, c.form, c.color, { weapon: null, scale: c.K });
+    ctx.restore();
+  }
+}
+
+const tracers = [];
+/* 枪口相对战士"脚下投影点"的偏移。drawWeapon 画在 (px+12, py-15)，
+   所以枪口取 (px+16, py-16) —— 和枪身末端对齐，不悬空。 */
+const MUZZLE_DX = 16, MUZZLE_DY = -16;
+let fireAcc = 0, muzzleT = 0, MUZZLE_LIFE = 0.055;
+function updateFire(dt) {
+  if (muzzleT > 0) muzzleT = Math.max(0, muzzleT - dt);
+  for (let i = tracers.length - 1; i >= 0; i--) {
+    tracers[i].t += dt;
+    if (tracers[i].t >= tracers[i].life) tracers.splice(i, 1);
+  }
+  if (phase !== "PLAY" || Squad.count <= 0) return;
+
+  const spec = WEAPONS[Squad.weapon] || WEAPONS.pistol;
+  fireAcc += dt * spec.rate;
+  if (fireAcc < 1) return;
+  fireAcc = 0;
+
+  const mem = squadMembers();
+  if (!mem.length) return;
+  const K = soldierScale(mem.length);
+  const zl = COMBAT.hitLine(kFor(curFormation));
+  // 霰弹枪一次扣扳机飞出 5 颗，画面上要给 9 道散布，否则读成"步枪"
+  const n = spec.pellets > 1 ? 9 : 5;
+  for (let i = 0; i < n; i++) {
+    const m = mem[(Math.random() * Math.min(mem.length, 6)) | 0];   // 只让前排开火
+    const a = project(memberX(m.dx), m.dz);
+    /* 枪口位置必须贴着枪身。第一版写的是 py-44，比头盔还高一截，
+       弹迹从头顶上方凭空生出，和枪完全脱节；drawWeapon 画在 py-15，
+       所以这里取 py-16、比准星再往外 16px。 */
+    const sx = a.x + MUZZLE_DX * K, sy = a.y + MUZZLE_DY * K;
+    const b = project(rand(-1.6, 1.6), zl + rand(-0.3, 0.3));
+    /* 弹迹只在 x/y 两端记枪口和火力线，中间由 drawFire 按 t/life 插值 ——
+       之所以不做成"固定长度的一段线段"：k=4 时火力线在 6 米外，一条静止的
+       52px 短线不管是锚在枪口（埋在人堆里）还是锚在目标（路中间飘着几根
+       短棍，读成玻璃划痕）都不成立。会飞的弹头没有这个歧义：
+       头部在动，尾巴跟着长，眼睛追的是"运动"本身。 */
+    const dx = b.x - sx, dy = b.y - sy;
+    tracers.push({ sx, sy, bx: b.x, by: b.y, len: Math.hypot(dx, dy) || 1, t: 0, life: rand(.09, .14) });
+  }
+  muzzleT = MUZZLE_LIFE;
+}
+/* 一颗子弹在 t 时刻的"头 / 尾"两点。尾巴长度随飞行距离增长：
+   刚出膛时几乎没有尾迹（不糊住战士），飞到一半就拉满 46 px。 */
+const TRACER_TAIL = 46;
+function tracerHead(tr) {
+  const u = Math.min(1, tr.t / tr.life);
+  return { u, x: tr.sx + (tr.bx - tr.sx) * u, y: tr.sy + (tr.by - tr.sy) * u };
+}
+function drawFire() {
+  if (!tracers.length && muzzleT <= 0) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  if (tracers.length) {
+    /* 亮灰路面上的对比度是这里的全部难点：米白 @alpha .10 完全看不见，
+       第一版就是这么"消失"的。所以走两层 —— 外层暖橙粗光晕负责在浅底上
+       立住轮廓，内层白热细芯负责"这是子弹"。 */
+    for (const pass of [
+      { c: "#FFB24A", w: 5.6, a: 0.34 },
+      { c: "#FFF6DE", w: 2.4, a: 0.98 }
+    ]) {
+      ctx.globalAlpha = pass.a;
+      ctx.strokeStyle = pass.c;
+      ctx.lineWidth = pass.w;
+      ctx.beginPath();
+      for (const tr of tracers) {
+        const h = tracerHead(tr);
+        const L = Math.min(TRACER_TAIL, tr.len * h.u);
+        ctx.moveTo(h.x - (tr.bx - tr.sx) / tr.len * L, h.y - (tr.by - tr.sy) / tr.len * L);
+        ctx.lineTo(h.x, h.y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#FFFFFF";
+    for (const tr of tracers) {
+      const h = tracerHead(tr);
+      ctx.fillRect(h.x - 1.7, h.y - 1.7, 3.4, 3.4);
+    }
+  }
+  if (muzzleT > 0) {
+    const mem = squadMembers();
+    const K = soldierScale(mem.length);
+    const a = muzzleT / MUZZLE_LIFE;
+    ctx.globalAlpha = a * 0.8;
+    ctx.fillStyle = PAL.muzzle;
+    for (let i = 0; i < Math.min(6, mem.length); i++) {
+      const p = project(memberX(mem[i].dx), mem[i].dz);
+      ctx.beginPath();
+      ctx.ellipse(p.x + MUZZLE_DX * K, p.y + MUZZLE_DY * K + 1, 2.4, 5.2, 0, 0, 6.283);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 
 /* ---------- 穿门特效：碎块 + 飘字 ---------- */
@@ -2030,6 +2744,8 @@ function update(dt) {
   /* P3.2 档位棘轮：只升不降（§6.1.4）。
      跨档那一帧挂一次闪白；数值回落后 peakTier 保持不动 ——
      "剩 5 个紫色的幸存者"比"退回米白平民"更有叙事价值。 */
+  if (Squad.count > peakCount) peakCount = Squad.count;
+
   const wantTier = visualTier(Squad.count);
   if (wantTier > Squad.peakTier) {
     Squad.peakTier = wantTier;
@@ -2038,22 +2754,35 @@ function update(dt) {
   if (Squad.flash > 0) Squad.flash = Math.max(0, Squad.flash - dt);
   if (Squad.pulse > 0) Squad.pulse = Math.max(0, Squad.pulse - dt);
 
+  /* k 的刷新必须每帧做：它随**编队**变（霰弹对尸潮 6.0、对精锐 1.2），
+     而编队每几秒就换一次。玩家在门里选的枪不变，同一个人数今天能顶住的
+     波明天就顶不住了 —— 这就是"编队决定一切"在数值上的落点。 */
+  Squad.k = kFor(curFormation);
+
   // P1.6：滚动速度由时间曲线驱动，速度只改变"东西多快过去"，不改 PPM
   SCROLL = speedAt(simT);
   // 启动页也慢慢滚一点，让标题下面那座桥是活的
   scrollM += (phase === "BOOT" ? 2.6 : SCROLL) * dt;
   updateAsh(dt);
 
-  if (phase === "PLAY") {
-    updateGates(dt);
+  if (phase === "PLAY" || phase === "OVER") {
+    if (phase === "PLAY") updateGates(dt);
     updateZombies(dt);
     updateFx(dt);
+    updateCasualties(dt);
+    updateFire(dt);
+  }
+  /* 死亡后留 0.55 秒再弹结算：那半秒里最后几只扑上来、倒数几个人倒下，
+     直接盖结算面板会把"我是怎么死的"这一帧吃掉 —— 而那正是玩家要看的。 */
+  if (phase === "OVER" && overT > 0) {
+    overT -= dt;
+    if (overT <= 0) showOver();
   }
 }
 
 function render() {
   drawScene();
-  if (phase === "PLAY") {
+  if (phase === "PLAY" || phase === "OVER") {
     /* 丧尸与门要按 z 交错绘制：门是一层半透明光幕，如果一律画在丧尸上面，
        门从画面顶端滚下来的那两秒会把正在辨认的尸潮整片盖掉。
        这里以门的 z 为界，远的先画、近的后画，门永远夹在中间。 */
@@ -2061,10 +2790,15 @@ function render() {
     drawZombies(gz, 99);
     drawGates();
     drawZombies(-99, gz);
+    drawFire();
+    drawSquad(simT);
+    drawCasualties();
+    drawAsh();
+    drawFx();
+  } else {
+    drawSquad(simT);
+    drawAsh();
   }
-  drawSquad(simT);
-  drawAsh();
-  if (phase === "PLAY") drawFx();
 }
 
 /* =========================================================================
@@ -2162,6 +2896,17 @@ function updateDebug() {
   $("dbgWaveN").textContent = waveCount;
   $("dbgWaveZ").textContent = lz != null ? lz.toFixed(2) : "—";
   $("dbgNext").textContent = waveTimer > 0 ? waveTimer.toFixed(1) : "—";
+  /* P4 战斗行：k 必须和 K(t) 放在一起看 —— k/K < 1 就是"火力没跟上丧尸变硬"，
+     那正是下一局该多选武器门的信号（§7.6 尸检报告）。 */
+  const kNow = kFor(curFormation);
+  $("dbgK").textContent = kNow.toFixed(2);
+  $("dbgKt").textContent = COMBAT.K(simT).toFixed(1);
+  $("dbgM").textContent = Math.round(wavePower);
+  $("dbgLine").textContent = COMBAT.hitLine(kNow).toFixed(2);
+  const pvDbg = previewLoss();
+  $("dbgPred").textContent = pvDbg ? Math.round(pvDbg.frac * 100) + "%" : "—";
+  $("dbgHurt").textContent = Squad.hurtAcc.toFixed(2);
+  $("dbgCas").textContent = casualties.length;
   $("fpsBadge").textContent = fps + " FPS";
 }
 setInterval(updateDebug, 250);
@@ -2193,15 +2938,29 @@ const GUN_ICON = {
            '<rect x="11" y="4.2" width="8" height="2.4"/><rect x="15" y="9.2" width="3.2" height="4.2"/>'
 };
 function updateHudWeapon() {
-  const names = { pistol: "手枪", rifle: "步枪", shotgun: "霰弹枪", sniper: "狙击枪" };
-  const lv = Squad.weapon === "pistol" ? "k " + Squad.k.toFixed(2) : "Lv " + Squad.level;
+  const w = WEAPONS[Squad.weapon] || WEAPONS.pistol;
+  /* 手枪显示"k 1.50"（它没有等级，只有一个固定倍率）；
+     其余显示"Lv 3 · k 4.2"—— k 是玩家唯一需要和"预计 −x%"放在一起看的数。 */
+  const lv = Squad.weapon === "pistol"
+    ? "k " + Squad.k.toFixed(2)
+    : "Lv " + Squad.level + " · k " + Squad.k.toFixed(1);
   $("hudGunIcon").innerHTML =
     '<svg width="30" height="16" viewBox="0 0 30 16" fill="currentColor">' +
     (GUN_ICON[Squad.weapon] || GUN_ICON.pistol) + "</svg>";
-  $("hudGunName").textContent = names[Squad.weapon] || "手枪";
+  $("hudGunName").textContent = w.name;
   $("hudGunLv").textContent = lv;
 }
 updateHudWeapon();
+
+/* 枪位闪白：升级用 .flash（短、金），换枪用 .swap（长、白）。
+   必须先 remove 再强制回流，否则同一个 class 连加两次不会重播动画。 */
+function hudGunFlash(up) {
+  const el = $("hudGunIcon");
+  el.classList.remove("flash", "swap");
+  void el.offsetWidth;
+  el.classList.add(up ? "flash" : "swap");
+  setTimeout(() => el.classList.remove("flash", "swap"), 700);
+}
 
 /* 铭牌配色跟着 21 档走：卡片左侧竖条、人数、枪的剪影三者同色，
    低头看一眼就知道自己现在是第几档，不用去数身上有几块紫。
@@ -2233,34 +2992,86 @@ function updateHud() {
   syncHudTeam();
   $("hudDist").textContent = Math.round(scrollM);
   $("hudTime").textContent = mmss(simT);
-  /* 第三行显示当前编队名。P3 的三种编队必须在**文字上**也能确认，
-     否则玩家只能靠数数量猜 —— 而 1.5 秒里没有人能数清 24 只怪。
-     P4 会把这一行升级成"编队 + 我的枪对它够不够"。 */
-  $("hudFormation").textContent = waveCount ? FORMATIONS[curFormation].name : "—";
+
+  /* 第三行从 P4 起不再是"这是什么编队"，而是**"这一波会吃掉我多少"**。
+     编队名只解决"认不认得出"，玩家真正要做的判断是"我这把枪够不够"，
+     而这个判断的答案是一个百分比 —— 直接算给他，省掉一次心算。
+
+     这个数每帧都随走位变：躲开厚的那一列，"−22%" 会当场变成 "−13%"。
+     于是横向操作在战斗里第一次有了即时反馈（§6.4.2"只能减轻损失"）。
+     颜色分三档：<15% 青绿（安全）/ 15–30% 琥珀（要算一下）/ >30% 洋红（会疼）。 */
+  const pv = previewLoss();
+  const el = $("hudFormation");
+  if (!pv) {
+    el.textContent = "— 无遭遇 —";
+    el.style.color = "";
+  } else {
+    const pct = Math.min(999, Math.round(pv.frac * 100));
+    el.textContent = FORMATIONS[pv.form].name + (pct < 1 ? " · 无损" : " · 预计 −" + pct + "%");
+    el.style.color = pct >= 30 ? "#ED93B1" : pct >= 15 ? "#EF9F27" : "#5DCAA5";
+  }
   // 操作提示只在开场 8 秒内有效：队伍后排在 y≈919，提示正好压在脚上
   $("hudHint").style.opacity = simT > 8 ? "0" : "1";
 }
 setInterval(updateHud, 80);
 
+/* =========================================================================
+   P4.5 · 开局重置 / 死亡判定 / 结算（§6.4.4）
+   -------------------------------------------------------------------------
+   一处容易漏的地方：**重开必须重置全部状态**。第一版只重置了 phase 和 simT，
+   结果第二局开门时兵力接着上一局的 800 人、枪还是上一局那把狙击枪，
+   玩家会以为自己按错了什么。所以 resetRun 把所有活的东西一次列清 ——
+   以后新增任何全局数组，都必须加进这里。
+   ========================================================================= */
+let overT = 0, peakCount = 5;
+
+function resetRun() {
+  simT = 0; scrollM = 0;
+  Squad.x = 0; Squad.targetX = 0;
+  Squad.count = 5; Squad.shown = 5; Squad.peakTier = 1;
+  Squad.flash = 0; Squad.pulse = 0; Squad.hurtAcc = 0;
+  Squad.weapon = "pistol"; Squad.level = 1; Squad.k = 1.5;
+  zombies.length = 0; casualties.length = 0; waveHit.clear();
+  parts.length = 0; floaters.length = 0; tracers.length = 0;
+  pair = null; pairCount = 0; pairMaxAlive = 0;
+  lastWeaponGate = null; weaponShown = 0;
+  waveCount = 0; wavePower = 0; curFormation = "horde";
+  lastFormation = null; formStreak = 0;
+  waveTimer = FIRST_WAVE_DELAY;
+  fireAcc = 0; muzzleT = 0; overT = 0;
+  peakCount = 5;
+  dragging = false;
+}
+
 function startGame() {
+  resetRun();
   phase = "PLAY";
-  /* 计时必须从"进入断桥"这一刻归零。
-     simT 在启动页也在走（那里的桥要滚动），如果玩家在标题页停留一分钟再开，
-     门的分档表、丧尸编队、速度曲线会直接从"中盘"开始 —— 教学期被静默跳过。
-     之前所有时间阈值都在 20 秒之后才算数，看不出问题；v0.20 把 0–70 秒
-     全部改成了分档，这个坑就藏不住了。 */
-  simT = 0;
   $("boot").classList.add("hidden");
+  $("over").classList.remove("on");
   $("hud").classList.add("on");
   updateHudWeapon();
   spawnPair();                       // 第一对门立刻在屏外排好队
-  /* 第一波丧尸延迟 3.2 秒：让玩家先看清第一对门，再让怪进来。
-     两件事同时发生，新手会在"读数字"和"读怪"之间彻底失焦。 */
-  zombies = []; waveCount = 0; curFormation = "horde";
-  lastFormation = null; formStreak = 0;
-  waveTimer = 3.2;
+}
+
+function gameOver() {
+  if (phase !== "PLAY") return;
+  phase = "OVER";
+  Squad.count = 0;
+  overT = 0.55;                      // 留半秒给最后一扑，再盖面板
+}
+
+function showOver() {
+  $("overPeak").textContent = abbr(Math.round(peakCount));
+  $("overDist").textContent = Math.round(scrollM) + " m";
+  $("overTime").textContent = mmss(simT);
+  $("overTier").textContent = "V" + Squad.peakTier + " · " + tierName(Squad.peakTier);
+  $("overGun").textContent = (WEAPONS[Squad.weapon] || WEAPONS.pistol).name +
+    (Squad.weapon === "pistol" ? "" : " Lv" + Squad.level);
+  $("over").classList.add("on");
+  $("hud").classList.remove("on");
 }
 $("startBtn").addEventListener("click", startGame);
+$("againBtn").addEventListener("click", startGame);
 
 /* =========================================================================
    启动
@@ -2288,7 +3099,20 @@ window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
   get fps() { return fps; }, get simT() { return simT; }, get clamps() { return clamps; },
   get scrollM() { return scrollM; }, get phase() { return phase; },
   get frameMs() { return frameMs; },
-  applyGate, spawnPair };
+  applyGate, spawnPair,
+  /* ---- P4 自检出口 ----
+     step() 让无头模拟可以按固定 dt 直接推进逻辑（不渲染），
+     一局 6 分钟可以在 2 秒内跑完 —— 调 α / K / 门配比全靠它。 */
+  WEAPONS, GUN_ORDER, COMBAT, kOf, kFor, levelMul, colCovered, previewLoss,
+  SQUAD_REACH, FIRST_WAVE_DELAY,
+  step: (dt) => { simT += dt; update(dt); },
+  resetRun, startGame, gameOver,
+  get wavePower() { return wavePower; },
+  get casualties() { return casualties; },
+  get tracers() { return tracers; },
+  get peakCount() { return peakCount; },
+  get weaponShown() { return weaponShown; },
+  get overT() { return overT; } };
 
 </script>
 </body>

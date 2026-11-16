@@ -235,7 +235,7 @@
             <div id="hudFormation">— 无遭遇 —</div>
           </div>
         </div>
-        <div class="hud-bottom">P0 · 工程底座　1/2/3/4 换枪 · D 调试</div>
+        <div class="hud-bottom">P1 · 跑道与错觉　1/2/3/4 换枪 · D 调试</div>
       </div>
 
       <div id="fpsBadge"></div>
@@ -243,7 +243,7 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · P0 工程底座</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · P1 跑道与错觉</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
@@ -257,6 +257,7 @@
           <span>N <b id="dbgN">1</b></span>
           <span>k <b id="dbgK">1.50</b></span>
           <span>v <b id="dbgV">10.30</b></span>
+          <span>走位 <b id="dbgLim">±1.56</b></span>
           <span>距离 <b id="dbgDist">0</b>m</span>
           <span>编队 <b id="dbgForm">—</b></span>
         </div>
@@ -270,7 +271,7 @@
         <div>
           <div class="boot-top">
             <div class="tag">末 日 高 架</div>
-            <div class="stage-pill">P0 / 07</div>
+            <div class="stage-pill">P1 / 07</div>
           </div>
           <div class="title-wrap">
             <h1 class="title">Z<span>-</span>RUSH</h1>
@@ -332,14 +333,27 @@ const RAIL_W = 0.16;                     // 护栏本身占地宽度
    之前的 1.1 m 边带 + 停在车道的废车，让 6 m 桥面实际只剩 3.8 m 能用。 */
 const EDGE_M = 0.34;
 const FIELD_HALF = BRIDGE_HALF - EDGE_M;      // 2.66 m → 可用宽 5.32 m = 447 px
-const SQUAD_HALF = 0.34;                      // 战士肩甲外缘到中轴的距离
-const SQUAD_LIMIT = FIELD_HALF - SQUAD_HALF;  // 2.32 m，身体正好贴到战场边缘
+/* ---------- 走位上限：由"队形宽度"决定，不由单个战士决定 ----------
+   这是最容易写错的一条。上一版把队伍中心钳在 ±2.32 m，可三名战士横向
+   各偏 ±1.18 m —— 贴边时最外侧的人中心跑到 3.50 m，早就掉出 3 m 的桥外。
+   正确做法：先定队形总宽，再用它反推中心能走多远。
+
+   FORM_W 恒定 1.6 m：人多了只加排、不加宽。
+   这样走位上限不随人数变化，玩家不会"变强了反而够不到门"。 */
+const FORM_W = 1.60;                            // 队形总宽（含左右肩甲）
+const FORM_HALF = FORM_W / 2;                   // 0.80
+const SQUAD_HALF = 0.30;                        // 单个战士肩甲外缘（已含 0.04 视觉容差）
+const SQUAD_LIMIT = FIELD_HALF - FORM_HALF - SQUAD_HALF;  // 1.56 m
 const CAM = { ppm: PPM, squadZ: 1.75 };   // squadZ：队伍后方留给方阵纵深的空间
 /* 队伍锚点：y = H − squadZ × PPM ≈ 813。
    战士落在画面 85% 高度，前方留出 9.6 米战场，身后留 1.75 米给多排方阵。 */
 const SQUAD_Y = H - CAM.squadZ * PPM;
-const VIEW_Z = SQUAD_Y / PPM;            // 画面顶端对应的世界 z（约 9.98m）
-const SCROLL = 3.0;                      // P0 预览用滚动速度 m/s（P1 接 v(t)）
+const VIEW_Z = SQUAD_Y / PPM;            // 画面顶端对应的世界 z（约 9.68m）
+
+/* ---------- 速度曲线（§7.1.1）：起步 10.3 m/s，约 4 分 10 秒封顶 19.3 ---------- */
+const V_BASE = 10.3, V_RAMP = 0.036, V_MAX = 19.3;
+const speedAt = (t) => Math.min(V_BASE + V_RAMP * t, V_MAX);
+let SCROLL = V_BASE;                     // 当前帧的实际滚动速度，update 里按 t 刷新
 
 /* 亮色调：白日水泥桥。冷灰蓝的桥 + 暖白的阳光 + 高饱和的阵营色。 */
 const PAL = {
@@ -434,7 +448,7 @@ function unprojectY(sy) { return (SQUAD_Y - sy) / PPM; }
 
 /* 桥面铺装纹理：按"世界米"切格，滚动时整张纹理平移。
    这样所有接缝、裂缝、车道线都天然跟着世界走，不需要逐个实体更新。 */
-const TILE_M = 12;                        // 纹理覆盖 12 米（含上下各一段缓冲）
+const TILE_M = 24;                        // 纹理覆盖 24 米。12 米时同一辆车每 1.2 秒就出现一次，太容易被看穿
 let deckTile = null, waterTile = null;
 
 function buildTiles() {
@@ -472,9 +486,12 @@ function buildTiles() {
     g.fillRect(inner - 1.5, 0, 3, TH);
   }
 
-  /* --- 横向接缝：每 4 米一道，这是"在动"的唯一硬参照 --- */
-  for (let m = 0; m < TILE_M; m += 4) {
-    const y = TH - m * PPM;
+  /* --- 横向接缝：每 4 米一道，这是"在动"的唯一硬参照 ---
+     相位必须落在纹理内部，绝不能正好压在 0 / TH 上：压在边界上的那一道
+     会被裁掉，平铺后每 12 米出现一次 8 米空档，节奏当场破功。
+     12 米 = 3 个 4 米周期，所以只要起始相位错开 2 米，就永远不碰边界。 */
+  for (let i = 0; i < TILE_M / 4; i++) {
+    const y = 168 + i * 4 * PPM;
     g.fillStyle = PAL.seam;
     g.fillRect(L, y, R - L, 3);
     g.fillStyle = "rgba(240,244,248,.22)";
@@ -484,18 +501,17 @@ function buildTiles() {
     g.fillRect(L, y - 2, R - L, 2);
   }
 
-  /* --- 中央车道虚线：对齐 4 米接缝的相位，接缝处自然断开。
-         原来 ±1.5 m 处还有两条通长白线，看起来像"轨道"，把 6 m 路面
-         切成了"中间能站、两边不敢去"。删掉后整幅路面读作一个战场。 --- */
+  /* --- 中央车道虚线：与接缝同一套 4 米周期，起始相位再错开 10px，
+         免得虚线的头正好和接缝黏成一条长线。 --- */
   g.fillStyle = PAL.lane;
-  for (let m = 0; m < TILE_M; m += 4) {
-    g.fillRect(W / 2 - 2.5, TH - m * PPM - PPM * 1.9, 5, PPM * 1.9);
+  for (let i = 0; i < TILE_M / 4; i++) {
+    g.fillRect(W / 2 - 2.5, 178 + i * 4 * PPM, 5, 150);
   }
 
   /* --- 裂缝：只从接缝和桥沿起，细长、低对比。不能满屏乱爬，
          否则亮色调会被切成"碎花布"，反而看不清战场。 --- */
-  for (let i = 0; i < 10; i++) {
-    let x = srand(L + 8, R - 8), y = srand(0, TH);
+  for (let i = 0; i < 22; i++) {
+    let x = srand(L + 8, R - 8), y = srand(24, TH - 80);
     g.strokeStyle = PAL.crack;
     g.lineWidth = srand(.8, 1.6);
     g.beginPath(); g.moveTo(x, y);
@@ -503,11 +519,16 @@ function buildTiles() {
     g.stroke();
   }
 
-  /* --- 修补过的沥青块：比底色深一号的圆角矩形 --- */
-  for (let i = 0; i < 5; i++) {
-    const x = srand(L + 20, R - 70), y = srand(0, TH - 60);
-    g.fillStyle = PAL.patch;
-    roundRect(g, x, y, srand(30, 70), srand(24, 60), 5); g.fill();
+  /* --- 路面污渍：不能用圆角矩形，俯视下那会读成"贴纸 / UI 卡片"。
+         用无边界径向渐变做油渍和积灰，只提供大块明暗起伏，不产生形状。 --- */
+  for (let i = 0; i < 6; i++) {
+    const cx = srand(L + 40, R - 40), cy = srand(0, TH), r = srand(70, 150);
+    const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+    rg.addColorStop(0, "rgba(70,84,94,.11)");
+    rg.addColorStop(.6, "rgba(70,84,94,.05)");
+    rg.addColorStop(1, "rgba(70,84,94,0)");
+    g.fillStyle = rg;
+    g.fillRect(cx - r, cy - r, r * 2, r * 2);
   }
 
   /* --- 轮胎磨痕：两条沿车道方向的淡淡黑带 --- */
@@ -534,7 +555,7 @@ function buildTiles() {
   wg.addColorStop(0, PAL.water);
   wg.addColorStop(1, PAL.waterDeep);
   w.fillStyle = wg; w.fillRect(0, 0, W, TILE_M * PPM);
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 170; i++) {
     const x = srand(0, W), y = srand(0, TILE_M * PPM);
     w.fillStyle = PAL.waterGlint;
     w.fillRect(x, y, srand(6, 22), srand(1, 2.4));
@@ -556,9 +577,9 @@ function drawBridgeEdges(g, L, R, TH) {
     g.fillRect(side < 0 ? rx - 5 : rx, 0, 5, TH);
     g.fillStyle = PAL.rail;
     g.fillRect(side < 0 ? rx - 5 : rx, 0, 2, TH);
-    // 立柱：每 3 米一根，带一点投影
-    for (let m = 0; m < TILE_M; m += 3) {
-      const y = TH - m * PPM;
+    // 立柱：每 3 米一根，带一点投影。相位错开，避免压到纹理边界被裁掉
+    for (let i = 0; i < TILE_M / 3; i++) {
+      const y = 126 + i * 3 * PPM;
       g.fillStyle = "rgba(30,40,54,.18)";
       g.fillRect(side < 0 ? rx - 2 : rx + 4, y, 6, 8);
       g.fillStyle = PAL.railPost;
@@ -567,11 +588,11 @@ function drawBridgeEdges(g, L, R, TH) {
       g.fillRect(side < 0 ? rx - 7 : rx - 1, y - 2, 8, 2);
     }
     // 桥沿反光条：黄黑相间的警示块，每 6 米一组
-    for (let m = 0; m < TILE_M; m += 6) {
-      const y = TH - m * PPM;
-      for (let i = 0; i < 4; i++) {
-        g.fillStyle = i % 2 ? "#3a3f47" : "#d8b24a";
-        g.fillRect(side < 0 ? edge + 2 : edge - 9, y + i * 7, 7, 7);
+    for (let i = 0; i < TILE_M / 6; i++) {
+      const y = 84 + i * 6 * PPM;
+      for (let k = 0; k < 4; k++) {
+        g.fillStyle = k % 2 ? "#3a3f47" : "#d8b24a";
+        g.fillRect(side < 0 ? edge + 2 : edge - 9, y + k * 7, 7, 7);
       }
     }
   }
@@ -585,7 +606,7 @@ function drawWreckage(g, L, R, TH) {
   const edgeX = (side, t) => side < 0 ? L + t : R - t;   // t = 距桥缘 px
 
   // 弹坑：只吃边带，半径不超过带子
-  for (const [side, y, r] of [[-1, TH * .22, 12], [1, TH * .64, 13], [-1, TH * .88, 10]]) {
+  for (const [side, y, r] of [[-1, TH * .12, 12], [1, TH * .33, 13], [-1, TH * .51, 10], [1, TH * .72, 12], [-1, TH * .9, 11]]) {
     const x = edgeX(side, band * .52), rr = Math.min(r, band * .46);
     g.fillStyle = "rgba(40,46,56,.5)";
     g.beginPath(); g.ellipse(x, y, rr, rr * .8, .3, 0, Math.PI * 2); g.fill();
@@ -602,14 +623,16 @@ function drawWreckage(g, L, R, TH) {
 
   // 废弃车：撞在护栏上，车头压在边带里，只剩一小截探到桥外
   const cars = [
-    { x: L + 9,  y: TH * .10, w: 50, h:  98, c: "#7c5a52", a: -.09 },
-    { x: R - 9,  y: TH * .44, w: 48, h:  94, c: "#4f6472", a:  .11 },
-    { x: L + 8,  y: TH * .76, w: 52, h: 100, c: "#6b6f5a", a: -.06 }
+    { x: L + 9,  y: TH * .055, w: 50, h:  98, c: "#7c5a52", a: -.09 },
+    { x: R - 9,  y: TH * .240, w: 48, h:  94, c: "#4f6472", a:  .11 },
+    { x: L + 8,  y: TH * .405, w: 52, h: 100, c: "#6b6f5a", a: -.06 },
+    { x: R - 7,  y: TH * .620, w: 46, h:  92, c: "#5c5f6b", a:  .07 },
+    { x: L + 10, y: TH * .815, w: 50, h:  96, c: "#6f5f4c", a: -.11 }
   ];
   for (const c of cars) drawCarTop(g, c);
 
   // 翻倒的隔离墩：贴着桥沿侧躺，不占车道
-  for (const [side, y, a] of [[1, TH * .26, 1.42], [-1, TH * .54, -1.38]]) {
+  for (const [side, y, a] of [[1, TH * .17, 1.42], [-1, TH * .37, -1.38], [1, TH * .69, 1.36], [-1, TH * .87, -1.44]]) {
     const x = edgeX(side, band * .55);
     g.save(); g.translate(x, y); g.rotate(a);
     g.fillStyle = "#9a9384"; g.fillRect(-26, -8, 52, 16);
@@ -618,7 +641,7 @@ function drawWreckage(g, L, R, TH) {
   }
 
   // 零星杂物：只撒在边带，绝不进内场
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 52; i++) {
     const side = i % 2 ? 1 : -1;
     const x = edgeX(side, srand(3, band - 5));
     g.fillStyle = "rgba(60,68,80," + srand(.15, .35) + ")";
@@ -850,19 +873,27 @@ function drawWeapon(px, py, type, w) {
   }
 }
 
-/* 队伍：P0 用一支小队展示三种形态 + 四把枪，方便直接看美术 */
+/* 队伍：P0 用一支小队展示三种形态 + 四把枪，方便直接看美术。
+   P1 起这三个人的横向偏移就是"队形"的雏形：总宽锁死 FORM_W，
+   所以贴边时外侧的人只会挤到桥沿，绝不会踩出桥面。 */
 const Squad = { x: 0, targetX: 0, count: 1, weapon: "pistol", level: 1, k: 1.5, formation: null };
 
+/* 队形里的一个成员能站到多外侧 —— 这是"不能移动到桥外"的唯一出口。
+   所有绘制都必须走这里，禁止在别处写 Squad.x + dx。 */
+function memberX(dx) {
+  const lim = FIELD_HALF - SQUAD_HALF;
+  return clamp(Squad.x + dx, -lim, lim);
+}
+
 function drawSquad(t) {
-  const p = project(Squad.x, 0);
-  // 一排三个形态，站位按世界单位摆（P3 才接 21 档与真实人数）
+  // 三名预览战士均分 1.6 m 队形宽度：-0.8 / 0 / +0.8
   const demo = [
-    { dx: -1.18, form: 1, color: "#F2E9D8" },
-    { dx: 0,      form: 2, color: "#FAC775" },
-    { dx: 1.18,   form: 3, color: "#A855C8" }
+    { dx: -FORM_HALF, form: 1, color: "#F2E9D8" },
+    { dx: 0,          form: 2, color: "#FAC775" },
+    { dx: FORM_HALF,  form: 3, color: "#A855C8" }
   ];
   for (const d of demo) {
-    const q = project(Squad.x + d.dx, 0);
+    const q = project(memberX(d.dx), 0);
     drawSoldier(q.x, q.y, d.form, d.color, { walk: t * 6, weapon: Squad.weapon });
   }
 }
@@ -877,7 +908,7 @@ for (let i = 0; i < ASH_N; i++) {
 }
 function updateAsh(dt) {
   for (const p of ash) {
-    p.x += p.vx * dt; p.y += (p.vy + SCROLL * PPM * .35) * dt;
+    p.x += p.vx * dt; p.y += (p.vy + SCROLL * PPM * .22) * dt;
     if (p.y > H + 4) { p.y = -4; p.x = rand(0, W); }
     if (p.x < -4) p.x = W + 4;
     p.tw += dt;
@@ -923,7 +954,10 @@ function loop(now) {
 function update(dt) {
   Squad.x = lerp(Squad.x, Squad.targetX, 1 - Math.pow(1 - 0.35, dt * 60));
   Squad.x = clamp(Squad.x, -SQUAD_LIMIT, SQUAD_LIMIT);
-  if (phase !== "BOOT") scrollM += SCROLL * dt;
+  // P1.6：滚动速度由时间曲线驱动，速度只改变"东西多快过去"，不改 PPM
+  SCROLL = speedAt(simT);
+  // 启动页也慢慢滚一点，让标题下面那座桥是活的
+  scrollM += (phase === "BOOT" ? 2.6 : SCROLL) * dt;
   updateAsh(dt);
 }
 
@@ -1005,6 +1039,7 @@ function updateDebug() {
   $("dbgN").textContent = Squad.count;
   $("dbgK").textContent = Squad.k.toFixed(2);
   $("dbgV").textContent = SCROLL.toFixed(2);
+  $("dbgLim").textContent = "±" + SQUAD_LIMIT.toFixed(2);
   $("dbgDist").textContent = scrollM.toFixed(0);
   $("dbgForm").textContent = Squad.formation || "—";
   $("fpsBadge").textContent = fps + " FPS";
@@ -1047,7 +1082,8 @@ buildTiles();
 requestAnimationFrame((t) => { running = true; last = 0; loop(t); });
 
 // 暴露给后续阶段 / 控制台自检
-window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M, SQUAD_LIMIT,
+window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
+  SQUAD_LIMIT, FORM_W, SQUAD_HALF, memberX, speedAt,
   project, groundY, View, Squad, PAL,
   get fps() { return fps; }, get simT() { return simT; }, get clamps() { return clamps; },
   get scrollM() { return scrollM; } };

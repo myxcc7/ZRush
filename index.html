@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#3f7189">
+<meta name="color-scheme" content="dark">
+<title>Z-RUSH · 断桥</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0E16'/%3E%3Cpath d='M9 9h14L15 23h8' fill='none' stroke='%23F2E9D8' stroke-width='3.5' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#22303c;
+    --bone:#F2E9D8;
+    --muted:rgba(242,233,216,.52);
+    --hairline:rgba(242,233,216,.14);
+    --teal:#5DCAA5;
+    --amber:#EF9F27;
+    --pink:#ED93B1;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Consolas,Menlo,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--ink);
+    color:var(--bone);
+    overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    user-select:none;
+    touch-action:none;
+    overscroll-behavior:none;
+  }
+  #stage{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #frame{
+    position:relative;
+    overflow:hidden;
+    background:#5b8ea6;
+    flex:none;
+    box-shadow:0 0 0 1px rgba(242,233,216,.06),0 24px 80px rgba(0,0,0,.6);
+  }
+  #cv{display:block;touch-action:none}
+  .ui{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+
+  /* ---------- 启动画面 ---------- */
+  #boot{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:7% 8% 8%;
+    background:linear-gradient(to bottom,rgba(24,36,48,.62),rgba(24,36,48,.05) 34%,rgba(24,36,48,0) 55%,rgba(24,36,48,.55) 88%);
+    transition:opacity .5s ease;
+  }
+  #boot.hidden{opacity:0;pointer-events:none}
+  .boot-top{display:flex;justify-content:space-between;align-items:center}
+  .tag{
+    font-size:calc(var(--u,1px)*13);
+    letter-spacing:calc(var(--u,1px)*3.4);
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .stage-pill{
+    font-family:var(--mono);
+    font-size:calc(var(--u,1px)*12);
+    padding:calc(var(--u,1px)*5) calc(var(--u,1px)*11);
+    border:1px solid var(--hairline);
+    border-radius:calc(var(--u,1px)*20);
+    color:var(--muted);
+  }
+  .title-wrap{margin-top:calc(var(--u,1px)*26)}
+  .title{
+    font-weight:200;
+    font-size:calc(var(--u,1px)*86);
+    letter-spacing:calc(var(--u,1px)*3);
+    line-height:.98;
+    color:var(--bone);
+  }
+  .title span{font-weight:600}
+  .subtitle{
+    margin-top:calc(var(--u,1px)*18);
+    font-size:calc(var(--u,1px)*17);
+    letter-spacing:calc(var(--u,1px)*7);
+    color:var(--bone);
+  }
+  .boot-mid{
+    align-self:flex-end;
+    text-align:right;
+    font-family:var(--mono);
+    font-size:calc(var(--u,1px)*12.5);
+    line-height:1.9;
+    color:var(--muted);
+    /* 桥面改成亮色后，原来直接压在路面上的浅色文字几乎看不见，
+       这里补一块与 HUD 同款的深色底卡，保证任何场景亮度下都可读。 */
+    background:rgba(22,32,42,.6);
+    border:1px solid rgba(242,233,216,.12);
+    border-radius:calc(var(--u,1px)*9);
+    padding:calc(var(--u,1px)*9) calc(var(--u,1px)*12);
+  }
+  .boot-mid b{color:var(--bone);font-weight:500}
+  .boot-bottom{display:flex;flex-direction:column;gap:calc(var(--u,1px)*20)}
+  #startBtn{
+    pointer-events:auto;
+    appearance:none;border:1px solid rgba(242,233,216,.5);
+    background:var(--bone);color:#22303c;
+    font-size:calc(var(--u,1px)*19);
+    font-weight:600;letter-spacing:calc(var(--u,1px)*3);
+    padding:calc(var(--u,1px)*18) 0;
+    border-radius:calc(var(--u,1px)*6);
+    cursor:pointer;
+    transition:transform .15s ease,background .15s ease;
+    font-family:inherit;
+  }
+  #startBtn:hover{background:#fff}
+  #startBtn:active{transform:scale(.98)}
+  .boot-hint{
+    text-align:center;
+    font-size:calc(var(--u,1px)*13);
+    letter-spacing:calc(var(--u,1px)*1.5);
+    color:var(--muted);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{opacity:0;transition:opacity .4s ease}
+  #hud.on{opacity:1}
+  .hud-top{
+    position:absolute;top:0;left:0;right:0;
+    padding:calc(var(--u,1px)*11) calc(var(--u,1px)*12) calc(var(--u,1px)*24);
+    display:flex;justify-content:space-between;align-items:flex-start;
+    background:linear-gradient(to bottom,rgba(24,36,48,.5),rgba(24,36,48,0));
+  }
+  .hud-left{
+    background:rgba(22,32,42,.62);
+    border:1px solid rgba(242,233,216,.12);
+    border-radius:calc(var(--u,1px)*9);
+    padding:calc(var(--u,1px)*7) calc(var(--u,1px)*11) calc(var(--u,1px)*8);
+    backdrop-filter:blur(3px);
+  }
+  .hud-count{
+    font-family:var(--mono);
+    font-size:calc(var(--u,1px)*38);
+    font-weight:500;
+    line-height:1;
+    letter-spacing:calc(var(--u,1px)*-1);
+  }
+  .hud-label{
+    font-size:calc(var(--u,1px)*9);
+    letter-spacing:calc(var(--u,1px)*2.2);
+    color:var(--muted);
+    margin-top:calc(var(--u,1px)*3);
+  }
+  .hud-right{
+    text-align:right;font-family:var(--mono);font-size:calc(var(--u,1px)*11);line-height:1.7;color:var(--muted);
+    background:rgba(22,32,42,.55);border:1px solid rgba(242,233,216,.1);
+    border-radius:calc(var(--u,1px)*9);
+    padding:calc(var(--u,1px)*6) calc(var(--u,1px)*10);
+  }
+  .hud-right b{color:var(--bone);font-weight:500}
+  .hud-weapon{
+    margin-top:calc(var(--u,1px)*6);
+    display:inline-flex;align-items:center;gap:calc(var(--u,1px)*6);
+    font-size:calc(var(--u,1px)*11);
+    color:var(--bone);
+  }
+  .hud-weapon .lv{color:var(--muted);font-family:var(--mono);font-size:calc(var(--u,1px)*11)}
+  .hud-weapon svg{opacity:.9}
+  .hud-bottom{
+    position:absolute;bottom:calc(var(--u,1px)*14);left:0;right:0;
+    text-align:center;
+    font-size:calc(var(--u,1px)*11);
+    letter-spacing:calc(var(--u,1px)*2);
+    /* 亮色桥面上浅色字会消失，这里反过来用深色字 + 浅色描边 */
+    color:rgba(38,54,66,.62);
+    text-shadow:0 1px 2px rgba(255,255,255,.55);
+  }
+
+  /* ---------- 调试面板 ---------- */
+  #debug{
+    position:absolute;left:0;right:0;bottom:0;
+    background:rgba(22,32,42,.92);
+    border-top:1px solid var(--hairline);
+    font-family:var(--mono);
+    font-size:calc(var(--u,1px)*11);
+    color:var(--muted);
+    padding:calc(var(--u,1px)*10) calc(var(--u,1px)*14) calc(var(--u,1px)*14);
+    display:none;
+  }
+  #debug.on{display:block}
+  #debug .row{display:flex;gap:calc(var(--u,1px)*16);flex-wrap:wrap;line-height:1.9}
+  #debug .row span b{color:var(--bone);font-weight:400}
+  #debug .row.head{justify-content:space-between;margin-bottom:calc(var(--u,1px)*6)}
+  #debug .warn{color:var(--pink)}
+  #debug table{border-collapse:collapse;margin-top:calc(var(--u,1px)*6);width:100%}
+  #debug td,#debug th{padding:calc(var(--u,1px)*3) calc(var(--u,1px)*6);text-align:center;border-bottom:1px solid rgba(242,233,216,.07);font-weight:400}
+  #debug th{color:var(--muted)}
+  #debug td.proj{color:var(--bone)}
+  #dbgToggle{pointer-events:auto;position:absolute;right:calc(var(--u,1px)*18);bottom:calc(var(--u,1px)*18);width:calc(var(--u,1px)*30);height:calc(var(--u,1px)*30);border-radius:50%;border:1px solid var(--hairline);background:rgba(11,14,22,.5);color:var(--muted);cursor:pointer;font-size:calc(var(--u,1px)*13);font-family:var(--mono)}
+
+  /* ---------- 横屏提示 ---------- */
+  #rotate{
+    position:absolute;inset:0;display:none;
+    align-items:center;justify-content:center;
+    flex-direction:column;gap:calc(var(--rotate-u,1px)*18px);
+    padding:calc(var(--rotate-u,1px)*24px);text-align:center;
+    background:rgba(24,36,48,.94);
+    font-size:calc(var(--rotate-u,1px)*16px);letter-spacing:calc(var(--rotate-u,1px)*2px);color:var(--bone);
+    z-index:9;
+  }
+  #rotate svg{opacity:.75;width:calc(var(--rotate-u,1px)*46px);height:calc(var(--rotate-u,1px)*46px)}
+  #rotate .small{font-size:calc(var(--rotate-u,1px)*12px);letter-spacing:calc(var(--rotate-u,1px)*1px);color:var(--muted)}
+  @media (orientation:landscape){ #rotate{display:flex} }
+
+  #fpsBadge{position:absolute;top:calc(var(--u,1px)*20);left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:calc(var(--u,1px)*11);color:rgba(38,54,66,.55);display:none}
+  #fpsBadge.on{display:block}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="frame">
+    <canvas id="cv" width="540" height="960"></canvas>
+    <div class="ui">
+
+      <div id="hud">
+        <div class="hud-top">
+          <div class="hud-left">
+            <div class="hud-count" id="hudN">1</div>
+            <div class="hud-label">队伍 SURVIVORS</div>
+            <div class="hud-weapon" id="hudWeapon"></div>
+          </div>
+          <div class="hud-right">
+            <div><b id="hudDist">0</b> m</div>
+            <div id="hudTime">00:00</div>
+            <div id="hudFormation">— 无遭遇 —</div>
+          </div>
+        </div>
+        <div class="hud-bottom">P0 · 工程底座　1/2/3/4 换枪 · D 调试</div>
+      </div>
+
+      <div id="fpsBadge"></div>
+
+      <button id="dbgToggle" title="调试面板 (D)">D</button>
+
+      <div id="debug">
+        <div class="row head"><span>DEBUG · P0 工程底座</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row">
+          <span>FPS <b id="dbgFps">60</b></span>
+          <span>帧耗时 <b id="dbgMs">0</b>ms</span>
+          <span>实体 <b id="dbgEnt">0</b></span>
+          <span>粒子 <b id="dbgAsh">0</b></span>
+          <span>DPR <b id="dbgDpr">1</b></span>
+          <span id="dbgClampWrap">钳制 <b id="dbgClamp">0</b></span>
+        </div>
+        <div class="row">
+          <span>t <b id="dbgT">0.00</b>s</span>
+          <span>N <b id="dbgN">1</b></span>
+          <span>k <b id="dbgK">1.50</b></span>
+          <span>v <b id="dbgV">10.30</b></span>
+          <span>距离 <b id="dbgDist">0</b>m</span>
+          <span>编队 <b id="dbgForm">—</b></span>
+        </div>
+        <table>
+          <tr><th>z</th><th>screenY</th><th>1 单位高</th><th>区域</th></tr>
+          <tbody id="dbgProj"></tbody>
+        </table>
+      </div>
+
+      <div id="boot">
+        <div>
+          <div class="boot-top">
+            <div class="tag">末 日 高 架</div>
+            <div class="stage-pill">P0 / 07</div>
+          </div>
+          <div class="title-wrap">
+            <h1 class="title">Z<span>-</span>RUSH</h1>
+            <div class="subtitle">守住这座桥</div>
+          </div>
+        </div>
+        <div class="boot-mid">
+          <div>视角 <b>正俯视</b> · 战场占屏 <b>83%</b></div>
+          <div>可走面 <b>5.3 m</b> / 桥面 <b>6 m</b></div>
+          <div>队伍锚点 <b>y = 813</b> · 前向 <b>9.6 m</b></div>
+        </div>
+        <div class="boot-bottom">
+          <button id="startBtn">进 入 断 桥</button>
+          <div class="boot-hint">左右拖动战士 · 1/2/3/4 换枪 · D 调试</div>
+        </div>
+      </div>
+
+      <div id="rotate">
+        <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
+          <rect x="14" y="6" width="18" height="34" rx="3" stroke="#F2E9D8" stroke-width="1.6"/>
+          <path d="M8 16c-3 5-3 11 0 16M38 30c3-5 3-11 0-16" stroke="#F2E9D8" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <div>请竖屏游玩</div>
+        <div class="small">本作只有左右一个方向，竖握才能覆盖两侧的桥</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   Z-RUSH · P0 工程底座（正俯视版）
+   -------------------------------------------------------------------------
+   P0.1 竖版画布（540×960 逻辑分辨率，等比缩放居中，零依赖）
+   P0.2 横屏处理：提示层 + 黑边，永不重排布局
+   P0.3 主循环 + dt 钳制（0.05s 上限）+ DPR 适配 + 切后台不跳帧
+   P0.4 调试面板：FPS / 实体数 / t / N / k / 当前编队
+
+   【架构变更 · 取代伪 3D 透视】
+   镜头改为**正俯视**：桥面铺满 90% 以上屏宽，世界是平面的、线性滚动的。
+   理由：
+     1. 透视下丧尸在 45m 处只有 8px 高，刷怪必须靠"远景剖面"补偿，很别扭；
+        正俯视下每一只怪从进场到接触都是同样大小，生成逻辑回归简单。
+     2. 透视的远景只有一条窄缝，实际可用面积很小；正俯视把整块屏都用上。
+   ========================================================================= */
+
+/* ---------- 常量：与 §4.2 严格一致，不许改 ---------- */
+const W = 540, H = 960;
+/* 正俯视没有 camZ / camH / focal。镜头只由一个数决定：
+   PPM = pixels per meter，世界 1 米在屏幕上多少像素。
+   桥净宽 6m → 6 × 84 = 504px，占 540 屏宽的 93.3%。 */
+const PPM = 84;
+const BRIDGE_HALF = 3.0;                 // 桥净宽半幅（不含护栏）
+const RAIL_W = 0.16;                     // 护栏本身占地宽度
+/* 装饰边带：护栏内侧这 0.34 m 只允许放碎屑、弹坑和撞毁的车。
+   它把"看得见却走不到"的桥面压到最薄，其余全部是可走、可打的战场。
+   之前的 1.1 m 边带 + 停在车道的废车，让 6 m 桥面实际只剩 3.8 m 能用。 */
+const EDGE_M = 0.34;
+const FIELD_HALF = BRIDGE_HALF - EDGE_M;      // 2.66 m → 可用宽 5.32 m = 447 px
+const SQUAD_HALF = 0.34;                      // 战士肩甲外缘到中轴的距离
+const SQUAD_LIMIT = FIELD_HALF - SQUAD_HALF;  // 2.32 m，身体正好贴到战场边缘
+const CAM = { ppm: PPM, squadZ: 1.75 };   // squadZ：队伍后方留给方阵纵深的空间
+/* 队伍锚点：y = H − squadZ × PPM ≈ 813。
+   战士落在画面 85% 高度，前方留出 9.6 米战场，身后留 1.75 米给多排方阵。 */
+const SQUAD_Y = H - CAM.squadZ * PPM;
+const VIEW_Z = SQUAD_Y / PPM;            // 画面顶端对应的世界 z（约 9.98m）
+const SCROLL = 3.0;                      // P0 预览用滚动速度 m/s（P1 接 v(t)）
+
+/* 亮色调：白日水泥桥。冷灰蓝的桥 + 暖白的阳光 + 高饱和的阵营色。 */
+const PAL = {
+  deck:      "#c4cdd0",
+  deckLight: "#dce1df",
+  deckDark:  "#aebbc0",
+  seam:      "rgba(69,87,96,.24)",
+  lane:      "rgba(255,254,237,.94)",
+  crack:     "rgba(64,78,84,.34)",
+  patch:     "rgba(85,105,112,.10)",
+  side:      "#93a3a8",
+  sideLight: "#d1d9d6",
+  rail:      "#edf2eb",
+  railDark:  "#92a5ac",
+  railPost:  "#b7c5c8",
+  water:     "#83c6cf",
+  waterDeep: "#62aebe",
+  waterGlint:"rgba(226,242,250,.35)",
+  fogCity:   "#7f96a6",
+  bone:      "#F4EDE0",
+  cloth:     "#4c5a68",
+  clothDark: "#37424e",
+  armor:     "#7d8894",
+  helmet:    "#5f6b78",
+  visor:     "#1e2833",
+  gun:       "#2c333c",
+  gunLight:  "#59636f",
+  teal:      "#1D9E75",
+  amber:     "#BA7517",
+  pink:      "#D4537E",
+  muzzle:    "#FAC775",
+  blood:     "#8C4A3F",
+  shadow:    "rgba(30,40,54,.22)"
+};
+
+/* ---------- 小工具 ---------- */
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const rand  = (a, b) => a + Math.random() * (b - a);
+const pad   = (n) => String(n).padStart(2, "0");
+
+/* 伪随机（固定种子）—— 桥面裂缝/残骸每次刷新长一个样，便于前后对比 */
+let _seed = 20261116;
+function sr(){ _seed = (_seed * 1664525 + 1013904223) >>> 0; return _seed / 4294967296; }
+function srand(a,b){ return a + sr() * (b - a); }
+
+/* =========================================================================
+   P0.3 · 画布 / DPR / 尺寸
+   ========================================================================= */
+const frame = document.getElementById("frame");
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d", { alpha: false });
+
+const View = { cssW: W, cssH: H, dpr: 1, scale: 1 };
+
+function resize() {
+  // P0.2：横屏不重排，只是画面等比缩小、四周留黑边
+  const availW = window.innerWidth;
+  const availH = window.innerHeight;
+  const scale = Math.min(availW / W, availH / H);
+  View.scale = scale;
+  View.cssW = Math.floor(W * scale);
+  View.cssH = Math.floor(H * scale);
+  frame.style.width  = View.cssW + "px";
+  frame.style.height = View.cssH + "px";
+
+  // DPR 上限 2：高分屏足够清晰，同时避免 3x 屏幕的填充率爆炸
+  View.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width  = Math.round(W * View.dpr);
+  cv.height = Math.round(H * View.dpr);
+  cv.style.width  = View.cssW + "px";
+  cv.style.height = View.cssH + "px";
+  ctx.setTransform(View.dpr, 0, 0, View.dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+
+  // UI 字体按缩放比联动（--u = 逻辑 1px 对应的 CSS px）
+  frame.style.setProperty("--u", scale + "px");
+  frame.style.setProperty("--rotate-u", Math.min(scale, 1) + "px");
+}
+window.addEventListener("resize", resize, { passive: true });
+window.addEventListener("orientationchange", () => setTimeout(resize, 120));
+
+/* =========================================================================
+   投影：正俯视 = 一次线性映射，没有除法、没有缩放随距离变化。
+   z 是世界前方距离（米），越大越远（屏幕越靠上）；x 是横向（米）。
+   ========================================================================= */
+function project(x, z) {
+  return { x: W / 2 + x * PPM, y: SQUAD_Y - z * PPM, s: PPM };
+}
+function groundY(z) { return SQUAD_Y - z * PPM; }
+function unprojectY(sy) { return (SQUAD_Y - sy) / PPM; }
+
+/* 桥面铺装纹理：按"世界米"切格，滚动时整张纹理平移。
+   这样所有接缝、裂缝、车道线都天然跟着世界走，不需要逐个实体更新。 */
+const TILE_M = 12;                        // 纹理覆盖 12 米（含上下各一段缓冲）
+let deckTile = null, waterTile = null;
+
+function buildTiles() {
+  _seed = 20261116;
+  deckTile = document.createElement("canvas");
+  deckTile.width = W; deckTile.height = TILE_M * PPM;
+  const g = deckTile.getContext("2d");
+  const TH = deckTile.height;
+  const L = W / 2 - BRIDGE_HALF * PPM;    // 桥左缘
+  const R = W / 2 + BRIDGE_HALF * PPM;    // 桥右缘
+
+  /* --- 水泥底色：中间亮、两侧略暗，模拟日照角度 --- */
+  const base = g.createLinearGradient(L, 0, R, 0);
+  base.addColorStop(0, PAL.deckDark);
+  base.addColorStop(.18, PAL.deck);
+  base.addColorStop(.55, PAL.deckLight);
+  base.addColorStop(1, PAL.deck);
+  g.fillStyle = base;
+  g.fillRect(L, 0, R - L, TH);
+
+  /* --- 场地边带（走不到，所以做脏、做暗）：护栏内侧一条极窄的缓冲带 ---
+     这条带子是"无效区域"的唯一去处：碎屑、弹坑、撞毁的车全部塞进来。
+     带子以外到中央是干净亮面，玩家一眼就知道哪里能打。 */
+  const bandPx = EDGE_M * PPM;
+  for (const side of [-1, 1]) {
+    const inner = W / 2 + side * FIELD_HALF * PPM;   // 战场边界
+    const outer = W / 2 + side * BRIDGE_HALF * PPM;  // 桥缘
+    const eg = g.createLinearGradient(inner, 0, outer, 0);
+    eg.addColorStop(0, "rgba(72,88,98,.09)");
+    eg.addColorStop(1, "rgba(52,66,76,.28)");
+    g.fillStyle = eg;
+    g.fillRect(Math.min(inner, outer), 0, bandPx, TH);
+    // 路肩白线：战场边界，正好压在玩家能站到的极限上
+    g.fillStyle = "rgba(252,250,240,.66)";
+    g.fillRect(inner - 1.5, 0, 3, TH);
+  }
+
+  /* --- 横向接缝：每 4 米一道，这是"在动"的唯一硬参照 --- */
+  for (let m = 0; m < TILE_M; m += 4) {
+    const y = TH - m * PPM;
+    g.fillStyle = PAL.seam;
+    g.fillRect(L, y, R - L, 3);
+    g.fillStyle = "rgba(240,244,248,.22)";
+    g.fillRect(L, y + 3, R - L, 1.5);
+    // 接缝两侧的伸缩缝橡胶条
+    g.fillStyle = "rgba(40,46,56,.20)";
+    g.fillRect(L, y - 2, R - L, 2);
+  }
+
+  /* --- 中央车道虚线：对齐 4 米接缝的相位，接缝处自然断开。
+         原来 ±1.5 m 处还有两条通长白线，看起来像"轨道"，把 6 m 路面
+         切成了"中间能站、两边不敢去"。删掉后整幅路面读作一个战场。 --- */
+  g.fillStyle = PAL.lane;
+  for (let m = 0; m < TILE_M; m += 4) {
+    g.fillRect(W / 2 - 2.5, TH - m * PPM - PPM * 1.9, 5, PPM * 1.9);
+  }
+
+  /* --- 裂缝：只从接缝和桥沿起，细长、低对比。不能满屏乱爬，
+         否则亮色调会被切成"碎花布"，反而看不清战场。 --- */
+  for (let i = 0; i < 10; i++) {
+    let x = srand(L + 8, R - 8), y = srand(0, TH);
+    g.strokeStyle = PAL.crack;
+    g.lineWidth = srand(.8, 1.6);
+    g.beginPath(); g.moveTo(x, y);
+    for (let s = 0; s < 3; s++) { x += srand(-10, 10); y += srand(8, 20); g.lineTo(x, y); }
+    g.stroke();
+  }
+
+  /* --- 修补过的沥青块：比底色深一号的圆角矩形 --- */
+  for (let i = 0; i < 5; i++) {
+    const x = srand(L + 20, R - 70), y = srand(0, TH - 60);
+    g.fillStyle = PAL.patch;
+    roundRect(g, x, y, srand(30, 70), srand(24, 60), 5); g.fill();
+  }
+
+  /* --- 轮胎磨痕：两条沿车道方向的淡淡黑带 --- */
+  for (const lx of [-1.05, 1.05]) {
+    const grad = g.createLinearGradient(W / 2 + lx * PPM - 9, 0, W / 2 + lx * PPM + 9, 0);
+    grad.addColorStop(0, "rgba(50,58,70,0)");
+    grad.addColorStop(.5, "rgba(50,58,70,.13)");
+    grad.addColorStop(1, "rgba(50,58,70,0)");
+    g.fillStyle = grad;
+    g.fillRect(W / 2 + lx * PPM - 9, 0, 18, TH);
+  }
+
+  /* --- 桥沿：挡墙 + 金属护栏 --- */
+  drawBridgeEdges(g, L, R, TH);
+
+  /* --- 废墟：废弃车辆、弹坑、散落的零件，全部贴两侧 --- */
+  drawWreckage(g, L, R, TH);
+
+  /* --- 水面（桥两侧露出的那一点点） --- */
+  waterTile = document.createElement("canvas");
+  waterTile.width = W; waterTile.height = TILE_M * PPM;
+  const w = waterTile.getContext("2d");
+  const wg = w.createLinearGradient(0, 0, 0, TILE_M * PPM);
+  wg.addColorStop(0, PAL.water);
+  wg.addColorStop(1, PAL.waterDeep);
+  w.fillStyle = wg; w.fillRect(0, 0, W, TILE_M * PPM);
+  for (let i = 0; i < 90; i++) {
+    const x = srand(0, W), y = srand(0, TILE_M * PPM);
+    w.fillStyle = PAL.waterGlint;
+    w.fillRect(x, y, srand(6, 22), srand(1, 2.4));
+  }
+}
+
+function drawBridgeEdges(g, L, R, TH) {
+  for (const side of [-1, 1]) {
+    const edge = side < 0 ? L : R;
+    const out = side * RAIL_W * PPM;            // 护栏向外占的宽度
+    // 混凝土挡墙（侧壁）
+    g.fillStyle = PAL.side;
+    g.fillRect(side < 0 ? edge + out : edge - 4, 0, 4 - out * side * 0 + Math.abs(out), TH);
+    g.fillStyle = PAL.sideLight;
+    g.fillRect(side < 0 ? edge : edge - 5, 0, 5, TH);
+    // 金属横杆：两条，靠外
+    const rx = edge + out * .6;
+    g.fillStyle = PAL.railDark;
+    g.fillRect(side < 0 ? rx - 5 : rx, 0, 5, TH);
+    g.fillStyle = PAL.rail;
+    g.fillRect(side < 0 ? rx - 5 : rx, 0, 2, TH);
+    // 立柱：每 3 米一根，带一点投影
+    for (let m = 0; m < TILE_M; m += 3) {
+      const y = TH - m * PPM;
+      g.fillStyle = "rgba(30,40,54,.18)";
+      g.fillRect(side < 0 ? rx - 2 : rx + 4, y, 6, 8);
+      g.fillStyle = PAL.railPost;
+      g.fillRect(side < 0 ? rx - 7 : rx - 1, y - 2, 8, 9);
+      g.fillStyle = "rgba(255,255,255,.35)";
+      g.fillRect(side < 0 ? rx - 7 : rx - 1, y - 2, 8, 2);
+    }
+    // 桥沿反光条：黄黑相间的警示块，每 6 米一组
+    for (let m = 0; m < TILE_M; m += 6) {
+      const y = TH - m * PPM;
+      for (let i = 0; i < 4; i++) {
+        g.fillStyle = i % 2 ? "#3a3f47" : "#d8b24a";
+        g.fillRect(side < 0 ? edge + 2 : edge - 9, y + i * 7, 7, 7);
+      }
+    }
+  }
+}
+
+/* 废墟层：全部锁死在两侧的装饰边带里，内场保持干净可读。
+   之前废车停在紧贴车道的 0.7 m 带、弹坑在路中央，等于从战场里
+   白白挖掉三分之一。现在车是"撞穿护栏挂在桥外"，只剩车头压住边带。 */
+function drawWreckage(g, L, R, TH) {
+  const band = EDGE_M * PPM;
+  const edgeX = (side, t) => side < 0 ? L + t : R - t;   // t = 距桥缘 px
+
+  // 弹坑：只吃边带，半径不超过带子
+  for (const [side, y, r] of [[-1, TH * .22, 12], [1, TH * .64, 13], [-1, TH * .88, 10]]) {
+    const x = edgeX(side, band * .52), rr = Math.min(r, band * .46);
+    g.fillStyle = "rgba(40,46,56,.5)";
+    g.beginPath(); g.ellipse(x, y, rr, rr * .8, .3, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(30,36,46,.42)"; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(x, y, rr + 2, rr * .8 + 2, .3, 0, Math.PI * 2); g.stroke();
+    for (let i = 0; i < 5; i++) {
+      const a = srand(0, 6.28);
+      g.strokeStyle = "rgba(50,58,70,.35)"; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * .8);
+      g.lineTo(x + Math.cos(a) * (rr + srand(4, 9)), y + Math.sin(a) * (rr + srand(3, 8)) * .8);
+      g.stroke();
+    }
+  }
+
+  // 废弃车：撞在护栏上，车头压在边带里，只剩一小截探到桥外
+  const cars = [
+    { x: L + 9,  y: TH * .10, w: 50, h:  98, c: "#7c5a52", a: -.09 },
+    { x: R - 9,  y: TH * .44, w: 48, h:  94, c: "#4f6472", a:  .11 },
+    { x: L + 8,  y: TH * .76, w: 52, h: 100, c: "#6b6f5a", a: -.06 }
+  ];
+  for (const c of cars) drawCarTop(g, c);
+
+  // 翻倒的隔离墩：贴着桥沿侧躺，不占车道
+  for (const [side, y, a] of [[1, TH * .26, 1.42], [-1, TH * .54, -1.38]]) {
+    const x = edgeX(side, band * .55);
+    g.save(); g.translate(x, y); g.rotate(a);
+    g.fillStyle = "#9a9384"; g.fillRect(-26, -8, 52, 16);
+    for (let i = 0; i < 4; i++) { g.fillStyle = i % 2 ? "#3f434b" : "#d8b24a"; g.fillRect(-26 + i * 13, -8, 8, 16); }
+    g.restore();
+  }
+
+  // 零星杂物：只撒在边带，绝不进内场
+  for (let i = 0; i < 26; i++) {
+    const side = i % 2 ? 1 : -1;
+    const x = edgeX(side, srand(3, band - 5));
+    g.fillStyle = "rgba(60,68,80," + srand(.15, .35) + ")";
+    g.fillRect(x, srand(0, TH), srand(2, 6), srand(3, 7));
+  }
+}
+
+function drawCarTop(g, c) {
+  g.save(); g.translate(c.x, c.y); g.rotate(c.a);
+  // 投影
+  g.fillStyle = PAL.shadow;
+  roundRect(g, -c.w / 2 + 4, -c.h / 2 + 6, c.w, c.h, 10); g.fill();
+  // 车身
+  g.fillStyle = c.c;
+  roundRect(g, -c.w / 2, -c.h / 2, c.w, c.h, 9); g.fill();
+  // 车顶
+  g.fillStyle = shade(c.c, 1.18);
+  roundRect(g, -c.w * .40, -c.h * .22, c.w * .80, c.h * .48, 6); g.fill();
+  // 前后风挡
+  g.fillStyle = "rgba(28,38,50,.8)";
+  roundRect(g, -c.w * .36, -c.h * .40, c.w * .72, c.h * .16, 4); g.fill();
+  roundRect(g, -c.w * .36, c.h * .27, c.w * .72, c.h * .13, 4); g.fill();
+  // 侧窗
+  g.fillStyle = "rgba(28,38,50,.55)";
+  g.fillRect(-c.w * .47, -c.h * .18, 5, c.h * .36);
+  g.fillRect(c.w * .47 - 5, -c.h * .18, 5, c.h * .36);
+  // 引擎盖反光
+  g.fillStyle = "rgba(255,255,255,.16)";
+  g.fillRect(-c.w * .34, -c.h * .49, c.w * .68, 5);
+  // 车轮
+  g.fillStyle = "#232830";
+  for (const sx of [-1, 1]) for (const sy of [-1, 1])
+    g.fillRect(sx * c.w / 2 - (sx < 0 ? 0 : 4), sy * c.h * .30 - 9, 4, 18);
+  g.restore();
+}
+
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = clamp(Math.round(((n >> 16) & 255) * f), 0, 255);
+  const gg = clamp(Math.round(((n >> 8) & 255) * f), 0, 255);
+  const b = clamp(Math.round((n & 255) * f), 0, 255);
+  return "rgb(" + r + "," + gg + "," + b + ")";
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+/* =========================================================================
+   场景绘制：水面 + 桥面铺装（整体平移）+ 前景
+   ========================================================================= */
+let scrollM = 0;                       // 已滚动的米数
+
+function drawScene() {
+  const th = TILE_M * PPM;
+  const off = (scrollM * PPM) % th;    // 纹理向下平移 = 世界向后滚
+
+  // 水面：两层不同速度，制造一点点流动感
+  for (let y = -th + off * .55; y < H; y += th) ctx.drawImage(waterTile, 0, y);
+  // 桥面
+  for (let y = -th + off; y < H; y += th) ctx.drawImage(deckTile, 0, y);
+}
+
+/* =========================================================================
+   持枪战士（取代"胶囊小人"）
+   正俯视剪影，朝画面上方。组成：影子 / 双腿 / 护甲 / 头盔 / 双手持枪。
+   三种形态共用骨架，差别在肩宽、头盔、背包 —— 轮廓即可分辨。
+   ========================================================================= */
+const FORM = {
+  1: { w: 15, shoulder: 0,   helmet: "cap",    pack: false, armor: "#5c6b7a" },
+  2: { w: 16, shoulder: 2.5, helmet: "helmet", pack: false, armor: "#6f7d8c" },
+  3: { w: 18, shoulder: 5,   helmet: "heavy",  pack: true,  armor: "#8b96a3" }
+};
+
+function drawSoldier(px, py, form, color, opts) {
+  const f = FORM[form] || FORM[1];
+  const o = opts || {};
+  const team = color || f.armor;
+  const K = 1.65;
+  const w = f.w;
+  const walk = Math.sin(o.walk || 0) * 1.8;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(K, K);
+  ctx.translate(-px, -py);
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 1.1;
+  ctx.strokeStyle = "#263740";
+
+  // 短而柔的接地影；不画人物下方的大黑饼，保持日光场景干净。
+  ctx.fillStyle = "rgba(33,53,60,.20)";
+  ctx.beginPath(); ctx.ellipse(px + 3, py + 9, w * .85, w * .48, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 双腿、护膝与靴子：脚底摆相位，躯干没有纵向跳动。
+  for (const side of [-1, 1]) {
+    const lx = px + side * w * .31;
+    const ly = py + 3 + side * walk;
+    ctx.fillStyle = "#344751";
+    roundRect(ctx, lx - 3.5, ly - 5, 7, 14, 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#71858b";
+    ctx.fillRect(lx - 3, ly + 1, 6, 3);
+    ctx.fillStyle = "#24343d";
+    roundRect(ctx, lx - 3.8, ly + 7, 7.6, 5, 1.5); ctx.fill();
+  }
+
+  // 重装背包在队伍后方形成额外的第三层轮廓。
+  if (f.pack) {
+    ctx.fillStyle = "#435a62";
+    roundRect(ctx, px - w * .61, py + 2, w * 1.22, 12, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#82979a";
+    roundRect(ctx, px - w * .38, py + 5, w * .76, 5, 1.5); ctx.fill();
+    ctx.fillStyle = "#31464f";
+    ctx.fillRect(px - w * .45, py + 2, 2, 10);
+    ctx.fillRect(px + w * .45 - 2, py + 2, 2, 10);
+  }
+
+  // 防弹衣：深色包边、阵营色外层、内插板和腰部快拆扣。
+  ctx.fillStyle = "#293d47";
+  ctx.beginPath();
+  ctx.moveTo(px - w * .68, py - 10); ctx.lineTo(px + w * .68, py - 10);
+  ctx.lineTo(px + w * .51, py + 7); ctx.lineTo(px - w * .51, py + 7);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = team;
+  ctx.beginPath();
+  ctx.moveTo(px - w * .60, py - 9); ctx.lineTo(px + w * .60, py - 9);
+  ctx.lineTo(px + w * .44, py + 5); ctx.lineTo(px - w * .44, py + 5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = shade(team, .68);
+  roundRect(ctx, px - w * .35, py - 5, w * .7, 10, 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.24)";
+  ctx.fillRect(px - w * .48, py - 8, w * .35, 1.8);
+  ctx.fillStyle = "#293d47";
+  ctx.fillRect(px - w * .46, py + 4, w * .92, 3);
+  ctx.fillStyle = "#a7b6b4";
+  ctx.fillRect(px - 2, py + 4, 4, 3);
+
+  // 肩甲越大，外轮廓越方；轻装则保留圆润小肩。
+  for (const side of [-1, 1]) {
+    const sw = 5 + f.shoulder;
+    const sx = px + side * (w * .58 + f.shoulder * .35) - sw / 2;
+    ctx.fillStyle = shade(team, .82);
+    roundRect(ctx, sx, py - 11, sw, 10, f.shoulder ? 1.5 : 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.28)";
+    ctx.fillRect(sx + 1, py - 10, Math.max(2, sw - 3), 1.5);
+  }
+
+  // 头盔与面甲不是一颗圆点：外壳、护目条、面罩、顶部识别带分开绘制。
+  const hy = py - 16;
+  const hw = w * (f.helmet === "heavy" ? .57 : .49);
+  ctx.fillStyle = "#263a44";
+  roundRect(ctx, px - hw - 1, hy - w * .51 - 1, hw * 2 + 2, w * .98 + 2, w * .34); ctx.fill();
+  ctx.fillStyle = f.helmet === "heavy" ? "#4b626a" : "#60767c";
+  roundRect(ctx, px - hw, hy - w * .51, hw * 2, w * .98, w * .32); ctx.fill();
+  ctx.fillStyle = "#8da1a3";
+  roundRect(ctx, px - hw + 2, hy - w * .45, hw * .52, 2.2, 1); ctx.fill();
+  ctx.fillStyle = shade(team, 1.02);
+  ctx.fillRect(px - 1.8, hy - w * .49, 3.6, w * .38);
+  ctx.fillStyle = "#182b36";
+  roundRect(ctx, px - hw + 1, hy - 3.8, hw * 2 - 2, 4.8, 1.5); ctx.fill();
+  ctx.fillStyle = "#81b6bf";
+  ctx.fillRect(px - hw + 3, hy - 3, hw * .62, 1.4);
+  ctx.fillStyle = "#324b54";
+  roundRect(ctx, px - 4, hy + 2, 8, 5, 1.5); ctx.fill();
+
+  // 前伸的枪与双臂。任何形态都必须读出"持枪"，不是背着一根棍子。
+  drawWeapon(px, py - 12, o.weapon || "rifle", w);
+  ctx.restore();
+}
+
+/* 枪的俯视剪影：枪托、机匣、枪管、弹匣。枪种决定轮廓。 */
+function drawWeapon(px, py, type, w) {
+  const spec = {
+    pistol: { len: 15, wide: 3.4, mag: 0,  scope: false, spread: 0 },
+    rifle:  { len: 26, wide: 4.0, mag: 6,  scope: false, spread: 0 },
+    shotgun:{ len: 22, wide: 6.0, mag: 0,  scope: false, spread: 3 },
+    sniper: { len: 34, wide: 3.2, mag: 4,  scope: true,  spread: 0 }
+  }[type] || { len: 26, wide: 4, mag: 6 };
+
+  // 双臂呈夹枪姿态，袖口、护肘和露出的握枪手分别落色。
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(px + side * w * .63, py + 1);
+    ctx.rotate(side * .36);
+    ctx.fillStyle = "#3d535d";
+    roundRect(ctx, -3.5, -7, 7, 14, 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#778b8e";
+    ctx.fillRect(-3, -1, 6, 3);
+    ctx.fillStyle = "#bdad91";
+    roundRect(ctx, -2.8, -9, 5.6, 4, 1.5); ctx.fill();
+    ctx.restore();
+  }
+
+  const L = spec.len;
+  // 枪托
+  ctx.fillStyle = PAL.gun;
+  ctx.fillRect(px - 3, py + 1, 6, 5);
+  // 机匣
+  ctx.fillRect(px - spec.wide / 2, py - L * .45, spec.wide, L * .5);
+  // 枪管
+  ctx.fillStyle = PAL.gunLight;
+  ctx.fillRect(px - spec.wide * .32, py - L, spec.wide * .64, L * .58);
+  // 霰弹枪的枪口外扩
+  if (spec.spread) {
+    ctx.fillStyle = PAL.gun;
+    ctx.beginPath();
+    ctx.moveTo(px - spec.wide * .3, py - L + 4);
+    ctx.lineTo(px + spec.wide * .3, py - L + 4);
+    ctx.lineTo(px + spec.spread + 2, py - L - 3);
+    ctx.lineTo(px - spec.spread - 2, py - L - 3);
+    ctx.closePath(); ctx.fill();
+  }
+  // 弹匣（向下弯出一块）
+  if (spec.mag) {
+    ctx.fillStyle = PAL.gun;
+    ctx.fillRect(px + 1, py - 4, 3.4, spec.mag);
+  }
+  // 瞄镜
+  if (spec.scope) {
+    ctx.fillStyle = "#39424d";
+    ctx.fillRect(px + 2.6, py - L * .8, 2.6, 9);
+    ctx.fillStyle = "rgba(120,190,220,.55)";
+    ctx.fillRect(px + 2.9, py - L * .8, 1.4, 2);
+  }
+}
+
+/* 队伍：P0 用一支小队展示三种形态 + 四把枪，方便直接看美术 */
+const Squad = { x: 0, targetX: 0, count: 1, weapon: "pistol", level: 1, k: 1.5, formation: null };
+
+function drawSquad(t) {
+  const p = project(Squad.x, 0);
+  // 一排三个形态，站位按世界单位摆（P3 才接 21 档与真实人数）
+  const demo = [
+    { dx: -1.18, form: 1, color: "#F2E9D8" },
+    { dx: 0,      form: 2, color: "#FAC775" },
+    { dx: 1.18,   form: 3, color: "#A855C8" }
+  ];
+  for (const d of demo) {
+    const q = project(Squad.x + d.dx, 0);
+    drawSoldier(q.x, q.y, d.form, d.color, { walk: t * 6, weapon: Squad.weapon });
+  }
+}
+
+/* =========================================================================
+   灰烬粒子：正俯视下是"从眼前掠过"的碎纸屑，横向飘一点，纵向快
+   ========================================================================= */
+const ASH_N = 46;
+const ash = [];
+for (let i = 0; i < ASH_N; i++) {
+  ash.push({ x: rand(0, W), y: rand(0, H), r: rand(1, 2.6), vx: rand(-14, -4), vy: rand(30, 70), a: rand(.12, .4), tw: rand(0, 6.28) });
+}
+function updateAsh(dt) {
+  for (const p of ash) {
+    p.x += p.vx * dt; p.y += (p.vy + SCROLL * PPM * .35) * dt;
+    if (p.y > H + 4) { p.y = -4; p.x = rand(0, W); }
+    if (p.x < -4) p.x = W + 4;
+    p.tw += dt;
+  }
+}
+function drawAsh() {
+  for (const p of ash) {
+    ctx.fillStyle = "rgba(250,247,238," + (p.a * (0.65 + 0.35 * Math.sin(p.tw * 2))) + ")";
+    ctx.fillRect(p.x, p.y, p.r, p.r * 1.6);
+  }
+}
+
+/* =========================================================================
+   P0.3 · 主循环
+   ========================================================================= */
+const DT_MAX = 0.05;
+let last = 0, running = false;
+let simT = 0;
+let clamps = 0, frames = 0, frameMs = 0;
+let fps = 60, fpsAcc = 0, fpsFrames = 0;
+let phase = "BOOT";
+
+function loop(now) {
+  if (!running) return;
+  const t0 = performance.now();
+  if (!last) last = now;
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > DT_MAX) { dt = DT_MAX; clamps++; }
+  if (dt < 0) dt = 0;
+
+  simT += dt;
+  update(dt);
+  render();
+
+  fpsAcc += dt; fpsFrames++;
+  if (fpsAcc >= 0.5) { fps = Math.round(fpsFrames / fpsAcc); fpsAcc = 0; fpsFrames = 0; }
+  frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
+  frames++;
+  requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  Squad.x = lerp(Squad.x, Squad.targetX, 1 - Math.pow(1 - 0.35, dt * 60));
+  Squad.x = clamp(Squad.x, -SQUAD_LIMIT, SQUAD_LIMIT);
+  if (phase !== "BOOT") scrollM += SCROLL * dt;
+  updateAsh(dt);
+}
+
+function render() {
+  drawScene();
+  drawSquad(simT);
+  drawAsh();
+}
+
+/* =========================================================================
+   输入：只改 squad.targetX，没有第二个轴（§4.4.3）
+   ========================================================================= */
+let dragging = false, dragStartClientX = 0, dragStartX = 0;
+
+function pointerDown(e) {
+  if (e.target.closest("button")) return;
+  dragging = true;
+  dragStartClientX = e.clientX;
+  dragStartX = Squad.targetX;
+  if (cv.setPointerCapture && e.pointerId != null) cv.setPointerCapture(e.pointerId);
+}
+function pointerMove(e) {
+  if (!dragging) return;
+  // 位移 1:1 映射：屏幕 px → 世界米。正俯视下这个换算是常数，不随距离变
+  const metersPerCssPx = 1 / (PPM * View.scale);
+  Squad.targetX = clamp(dragStartX + (e.clientX - dragStartClientX) * metersPerCssPx, -SQUAD_LIMIT, SQUAD_LIMIT);
+}
+function pointerUp() { dragging = false; }
+
+frame.addEventListener("pointerdown", pointerDown);
+window.addEventListener("pointermove", pointerMove);
+window.addEventListener("pointerup", pointerUp);
+window.addEventListener("pointercancel", pointerUp);
+
+const keys = {};
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") { keys[e.key] = true; e.preventDefault(); }
+  if (e.key === "d" || e.key === "D") toggleDebug();
+  if (e.key === "Enter" && phase === "BOOT") startPreview();
+  // 临时：数字键换枪，方便直接看四种武器在战士手上的样子
+  const wm = { "1": "pistol", "2": "rifle", "3": "shotgun", "4": "sniper" };
+  if (wm[e.key]) { Squad.weapon = wm[e.key]; updateHudWeapon(); }
+});
+window.addEventListener("keyup", (e) => { keys[e.key] = false; });
+
+setInterval(() => {
+  if (!running) return;
+  const dt = 1 / 60, speed = 4.5;
+  if (keys.ArrowLeft) Squad.targetX = clamp(Squad.targetX - speed * dt, -SQUAD_LIMIT, SQUAD_LIMIT);
+  if (keys.ArrowRight) Squad.targetX = clamp(Squad.targetX + speed * dt, -SQUAD_LIMIT, SQUAD_LIMIT);
+}, 1000 / 60);
+
+document.addEventListener("visibilitychange", () => { last = 0; });
+window.addEventListener("blur", () => { last = 0; });
+
+/* =========================================================================
+   P0.4 · 调试面板
+   ========================================================================= */
+const $ = (id) => document.getElementById(id);
+let debugOn = false;
+function toggleDebug() {
+  debugOn = !debugOn;
+  $("debug").classList.toggle("on", debugOn);
+  $("fpsBadge").classList.toggle("on", debugOn);
+}
+$("dbgToggle").addEventListener("click", toggleDebug);
+
+function updateDebug() {
+  if (!debugOn) return;
+  $("dbgFps").textContent = fps;
+  $("dbgFps").className = fps >= 55 ? "" : "warn";
+  $("dbgMs").textContent = frameMs.toFixed(1);
+  $("dbgEnt").textContent = ASH_N + 3;
+  $("dbgAsh").textContent = ASH_N;
+  $("dbgDpr").textContent = View.dpr;
+  $("dbgClamp").textContent = clamps;
+  $("dbgPhase").textContent = phase;
+  $("dbgT").textContent = simT.toFixed(2);
+  $("dbgN").textContent = Squad.count;
+  $("dbgK").textContent = Squad.k.toFixed(2);
+  $("dbgV").textContent = SCROLL.toFixed(2);
+  $("dbgDist").textContent = scrollM.toFixed(0);
+  $("dbgForm").textContent = Squad.formation || "—";
+  $("fpsBadge").textContent = fps + " FPS";
+}
+setInterval(updateDebug, 250);
+
+/* 投影自检表：正俯视下 z → y 是一条直线，列出来给后续阶段对照 */
+(function buildProjTable() {
+  const rows = [[Math.round(VIEW_Z), "画面顶端"], [7, "刷新线"], [5, "门出现"], [2, "门逼近"], [0, "接触线 · 队伍"]];
+  $("dbgProj").innerHTML = rows.map(([z, label]) =>
+    "<tr><td>" + z + "</td><td class='proj'>" + groundY(z).toFixed(0) + "</td><td class='proj'>" +
+    PPM + "px</td><td>" + label + "</td></tr>"
+  ).join("");
+})();
+
+/* =========================================================================
+   HUD / 启动
+   ========================================================================= */
+function updateHudWeapon() {
+  const names = { pistol: "手枪", rifle: "步枪", shotgun: "霰弹枪", sniper: "狙击枪" };
+  const labels = { pistol: "k 1.50", rifle: "Lv 1", shotgun: "Lv 1", sniper: "Lv 1" };
+  $("hudWeapon").innerHTML =
+    '<svg width="26" height="12" viewBox="0 0 26 12"><rect x="2" y="3" width="16" height="3" fill="#F2E9D8"/><rect x="17" y="1" width="3" height="6" fill="#F2E9D8"/><rect x="5" y="6" width="4" height="5" fill="#F2E9D8"/></svg>' +
+    '<span>' + names[Squad.weapon] + '</span><span class="lv">' + labels[Squad.weapon] + '</span>';
+}
+updateHudWeapon();
+
+function startPreview() {
+  phase = "PREVIEW";
+  $("boot").classList.add("hidden");
+  $("hud").classList.add("on");
+}
+$("startBtn").addEventListener("click", startPreview);
+
+/* =========================================================================
+   启动
+   ========================================================================= */
+resize();
+buildTiles();
+requestAnimationFrame((t) => { running = true; last = 0; loop(t); });
+
+// 暴露给后续阶段 / 控制台自检
+window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M, SQUAD_LIMIT,
+  project, groundY, View, Squad, PAL,
+  get fps() { return fps; }, get simT() { return simT; }, get clamps() { return clamps; },
+  get scrollM() { return scrollM; } };
+
+</script>
+</body>
+</html>

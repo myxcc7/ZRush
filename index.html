@@ -131,29 +131,74 @@
     display:flex;justify-content:space-between;align-items:flex-start;
     background:linear-gradient(to bottom,rgba(24,36,48,.5),rgba(24,36,48,0));
   }
-  .hud-left{
-    /* 门从画面顶端进来时会穿过这一层。卡片做小、做透，
-       否则"×2 vs +46"里左边那个会被人数卡整个吃掉，玩家只能看到一个选项。 */
-    background:rgba(22,32,42,.50);
-    border:1px solid rgba(242,233,216,.10);
-    border-radius:calc(var(--u,1px)*9);
-    padding:calc(var(--u,1px)*6) calc(var(--u,1px)*9) calc(var(--u,1px)*7);
-    backdrop-filter:blur(2px);
+  /* 队伍铭牌：不用"圆角半透明卡片"，那是通用 UI 面板的语言。
+     这里是一块**战术铭牌**——直角、切角、左侧一条队伍色竖条、右上三颗刻度。
+     队伍色由 --team 驱动，跟着 21 档一起变，玩家低头看一眼就知道自己是什么级别。 */
+  .hud-squad{
+    --team:#F2E9D8;
+    position:relative;
+    display:flex;align-items:center;gap:calc(var(--u,1px)*9);
+    padding:calc(var(--u,1px)*6) calc(var(--u,1px)*12) calc(var(--u,1px)*7) calc(var(--u,1px)*13);
+    background:linear-gradient(152deg,rgba(20,31,41,.78),rgba(13,21,29,.58));
+    box-shadow:inset 0 0 0 1px rgba(242,233,216,.15);
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%);
+    backdrop-filter:blur(3px);
   }
-  .hud-count{
-    transition:transform .12s ease;
+  .hud-squad::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:calc(var(--u,1px)*3.5);
+    background:var(--team);
+    transition:background .35s ease;
+  }
+  .hud-squad::after{
+    /* 三颗递减刻度：不加文字也能读出"这块是仪表，不是按钮" */
+    content:"";position:absolute;right:calc(var(--u,1px)*8);top:calc(var(--u,1px)*7);
+    width:calc(var(--u,1px)*2);height:calc(var(--u,1px)*2);
+    background:rgba(242,233,216,.42);
+    box-shadow:
+      calc(var(--u,1px)*6) 0 0 rgba(242,233,216,.24),
+      calc(var(--u,1px)*12) 0 0 rgba(242,233,216,.13);
+  }
+  .hs-count{
+    display:block;
     font-family:var(--mono);
-    font-size:calc(var(--u,1px)*33);
+    font-size:calc(var(--u,1px)*31);
     font-weight:500;
-    line-height:1;
+    line-height:1.02;
     letter-spacing:calc(var(--u,1px)*-1);
+    transform-origin:left center;
+    transition:transform .12s ease,color .35s ease;
+    color:var(--team);
   }
-  .hud-count.hit{transform:scale(1.14)}
-  .hud-label{
-    font-size:calc(var(--u,1px)*8);
-    letter-spacing:calc(var(--u,1px)*1.8);
-    color:var(--muted);
-    margin-top:calc(var(--u,1px)*3);
+  .hs-count.hit{transform:scale(1.13)}
+  .hs-cap{
+    display:block;
+    font-size:calc(var(--u,1px)*7.5);
+    letter-spacing:calc(var(--u,1px)*2.1);
+    color:rgba(242,233,216,.5);
+    margin-top:calc(var(--u,1px)*1);
+  }
+  .hs-div{
+    width:1px;align-self:stretch;
+    background:rgba(242,233,216,.14);
+  }
+  /* 武器位：**现在就留出来**，P4 接武器门之后只换内容不改布局。
+     空着的时候放默认手枪，玩家第一眼就知道"这里会显示我的枪"。 */
+  .hs-gun{display:flex;align-items:center;gap:calc(var(--u,1px)*7)}
+  .hs-slot{
+    width:calc(var(--u,1px)*32);height:calc(var(--u,1px)*30);
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(6,12,18,.42);
+    box-shadow:inset 0 0 0 1px rgba(242,233,216,.16);
+    color:var(--team);
+    transition:color .35s ease;
+  }
+  .hs-gname{
+    display:block;font-size:calc(var(--u,1px)*11.5);letter-spacing:calc(var(--u,1px)*1);
+    color:var(--bone);line-height:1.2;
+  }
+  .hs-glv{
+    display:block;font-family:var(--mono);font-size:calc(var(--u,1px)*9.5);
+    color:rgba(242,233,216,.55);line-height:1.3;
   }
   .hud-right{
     text-align:right;font-family:var(--mono);font-size:calc(var(--u,1px)*10.5);line-height:1.65;color:var(--muted);
@@ -162,14 +207,6 @@
     padding:calc(var(--u,1px)*5) calc(var(--u,1px)*9);
   }
   .hud-right b{color:var(--bone);font-weight:500}
-  .hud-weapon{
-    margin-top:calc(var(--u,1px)*6);
-    display:inline-flex;align-items:center;gap:calc(var(--u,1px)*6);
-    font-size:calc(var(--u,1px)*11);
-    color:var(--bone);
-  }
-  .hud-weapon .lv{color:var(--muted);font-family:var(--mono);font-size:calc(var(--u,1px)*11)}
-  .hud-weapon svg{opacity:.9}
   .hud-bottom{
     /* 原来贴在 bottom:14px，正好压在队伍后腿上（队伍锚点 y≈813，后排在 900+）。
        挪到顶部 HUD 下方：那里前 3.5 秒一定没有门（第一对门要 3.5–4.5 秒才到），
@@ -235,10 +272,19 @@
 
       <div id="hud">
         <div class="hud-top">
-          <div class="hud-left">
-            <div class="hud-count" id="hudN">5</div>
-            <div class="hud-label">队伍 SURVIVORS</div>
-            <div class="hud-weapon" id="hudWeapon"></div>
+          <div class="hud-squad" id="hudSquad">
+            <div>
+              <span class="hs-count" id="hudN">5</span>
+              <span class="hs-cap">SURVIVORS</span>
+            </div>
+            <div class="hs-div"></div>
+            <div class="hs-gun">
+              <div class="hs-slot" id="hudGunIcon"></div>
+              <div>
+                <span class="hs-gname" id="hudGunName">手枪</span>
+                <span class="hs-glv" id="hudGunLv">k 1.50</span>
+              </div>
+            </div>
           </div>
           <div class="hud-right">
             <div><b id="hudDist">0</b> m</div>
@@ -246,7 +292,7 @@
             <div id="hudFormation">— 无遭遇 —</div>
           </div>
         </div>
-        <div class="hud-bottom" id="hudHint">P3 · 队伍与丧尸　左右拖动选门 · D 调试</div>
+        <div class="hud-bottom" id="hudHint">v0.20 · 节奏调整　左右拖动选门 · D 调试</div>
       </div>
 
       <div id="fpsBadge"></div>
@@ -254,7 +300,7 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · P3 队伍与丧尸</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · v0.20 节奏返工</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
@@ -271,7 +317,7 @@
           <span>档 <b id="dbgTier">3</b></span>
           <span>形态 <b id="dbgForm">1</b></span>
           <span>色 <b id="dbgCol">3</b></span>
-          <span>v <b id="dbgV">3.20</b></span>
+          <span>v <b id="dbgV">1.60</b></span>
           <span>走位 <b id="dbgLim">±1.56</b></span>
           <span>距离 <b id="dbgDist">0</b>m</span>
         </div>
@@ -307,7 +353,7 @@
         </div>
         <div class="boot-mid">
           <div>视角 <b>正俯视</b> · 战场占屏 <b>83%</b></div>
-          <div>队伍 <b>21 档</b> · 显示上限 <b>40</b> 人</div>
+          <div>队伍 <b>21 档</b> · 显示上限 <b>24</b> 人</div>
           <div>丧尸 <b>5 列</b> · 尸潮 / 混编 / 精锐</div>
         </div>
         <div class="boot-bottom">
@@ -384,12 +430,14 @@ const VIEW_Z = SQUAD_Y / PPM;            // 画面顶端对应的世界 z（约 
    是伪 3D 时代按 45 m 纵深算的；直接搬过来，一趟穿越只要 0.94 → 0.50 秒，
    门上的数字根本来不及读，等于把整局变成反应测试。
 
-   所以速度必须以"几秒穿过一屏"为唯一标准：
-     起步 3.2 m/s → 3.02 秒穿屏
-     封顶 4.4 m/s → 2.20 秒穿屏
-   封顶时间仍是 250 秒（4 分 10 秒），和原文档的时间锚点对齐。
-   2.2 秒是这条的下限：再快就低于"1.5 秒判断 + 0.8 秒读结果"的认知预算。 */
-const V_BASE = 3.2, V_RAMP = 0.0048, V_MAX = 4.4;
+   所以速度必须以"几秒穿过一屏"为唯一标准。第一版标到 3.2 → 4.4（穿屏 3.02 → 2.20 s），
+   实测还是太快：门从顶上冒出来到脚下只有 3 秒，玩家来不及做"×2 还是 +n"这道题。
+   **v0.20 整体下调 50%**，起步 1.6 m/s：
+     起步 1.6 m/s → 6.05 秒穿屏（读门、数怪、走位都够）
+     封顶 3.4 m/s → 2.85 秒穿屏（后期压迫感仍成立）
+   爬满用 300 秒（5 分钟），正好是一局的目标长度。
+   全曲线只降不升，等真机跑过一局再决定要不要动 V_MAX。 */
+const V_BASE = 1.6, V_RAMP = 0.006, V_MAX = 3.4;
 const speedAt = (t) => Math.min(V_BASE + V_RAMP * t, V_MAX);
 let SCROLL = V_BASE;                     // 当前帧的实际滚动速度，update 里按 t 刷新
 
@@ -1420,17 +1468,32 @@ function leadZombieZ() {
    几何（全部由 §6.2.8 推出来，不许随手改）：
      门区中心   x = ±1.40 m
      门区宽     2.35 m   → 外缘 2.575 m，正好在战场边界 2.66 m 内
-     门区纵深   0.90 m
+     门区纵深   1.60 m   → 屏高 14%，读得出"一扇门"而不是一条横杠
      中央缝     2×1.40 − 2.35 = 0.45 m
    队伍中心走位范围 ±1.56 m，所以左右两侧都在门区覆盖内，只有故意走中线才会从缝里穿过。
    ========================================================================= */
 const GATE = {
   cx: 1.40,
   w: 2.35,
-  d: 0.90,
+  /* 纵深 0.90 → 1.85 m（76 → 155 px）。
+     0.90 m 那版在屏幕上是一条 197×76 的横条，读起来像"进度条"而不是"一扇门"，
+     数字被压在上边沿，俯视下完全没有"穿过去"的体积感。
+     1.85 m 让门接近 197×155 的近方形，四角地钉 + 光刃才有立足的地方。 */
+  d: 1.85,
   intervalMin: 3.5,      // 到达间隔（秒），§7.1 目标 3.5–4.5
   intervalMax: 4.5
 };
+
+/* 门必须在**整块**都还离线的时候生成。
+   速度降到 1.6 m/s 之后，v × 3.5 s 只有 5.6 m，而屏深 9.68 m ——
+   照旧公式会让门凭空出现在画面正中央。
+   所以生成距离取「按秒算」和「必须离线」的较大值：
+   低速期门间隔自动拉长到 6.8 秒（顺手把前期人数膨胀也压住了），
+   速度上来之后再回到 3.5–4.5 秒。 */
+const GATE_MIN_Z = VIEW_Z + GATE.d + 0.9;
+function gateSpawnZ() {
+  return Math.max(GATE_MIN_Z, SCROLL * rand(GATE.intervalMin, GATE.intervalMax));
+}
 
 /* 一屏只有一对：生成器只维护这一个对象（§6.2.4 硬规则 4）。
    新门在屏外生成（距离 > 可见纵深 9.68 m），所以屏幕里永远不可能出现第二对。 */
@@ -1444,37 +1507,81 @@ function addValue(coef, m) {
   return Math.max(1, Math.round(coef * Math.max(1, m) * rand(0.8, 1.2)));
 }
 
+/* ---------- 配对：按时间分档（§6.2.2 修订 · v0.20） ----------
+   原来第一对门就是「×2 vs +m」，而 +m 永远打不过 ×2 ——
+   于是**每一对门都等于固定翻倍**，13 对门就能从 5 人变成 4 万人。
+   实测 26 秒就爬到 V21（紫），后面 4 分钟没有任何视觉成长，
+   而且玩家从头到尾只需要记住"永远选 ×2"这一条，比大小这道题直接作废。
+
+   改成分档：前 70 秒主要给**两个都是个位数加法**的门，玩家真的要读数字、
+   真的要比大小；×2 当奖励偶发出现，量级上涨得慢一些。
+   ------------------- 时间表 -------------------
+   0–30 s   加法对 100%（2–9 的个位数）        （只有比大小，没有乘法）
+   30–60 s  加法对 85% / ×2 对 +n 15%
+   60–100s  加法对 55% / ×2 对 +n 35% / ×2 对 ÷2 10%
+   100 s +  加法对 35% / ×2 对 +n 45% / ×2 对 ÷2 20%
+   （P4 接入武器门后，这一列要并进文档的 40 / 45 / 15 里重排）
+   -------------------------------------------------
+   加法对的数值：前 60 秒固定 2–9 的个位数；60 秒后人数已过百，
+   个位数加法没有意义，按 m 的 22%–55% 给（仍然是加法对，只是跟着人数长大）。 */
+function smallAddPair(m) {
+  let a, b;
+  if (simT < 60) {
+    a = 2 + ((Math.random() * 7) | 0);          // 2…8
+    b = 2 + ((Math.random() * 7) | 0);
+    // 两个数至少差 2，否则"谁更大"要靠数最后一个格子，读起来反而费劲
+    if (Math.abs(a - b) < 2) b = clamp(a + (a < 6 ? 3 : -3), 2, 9);
+  } else {
+    a = Math.max(2, Math.round(m * rand(0.22, 0.34)));
+    b = Math.max(a + 2, Math.round(m * rand(0.42, 0.55)));
+  }
+  const two = Math.random() < 0.5;
+  return two
+    ? [{ op: "add", value: a }, { op: "add", value: b }]
+    : [{ op: "add", value: b }, { op: "add", value: a }];
+}
+
+function mulVsAdd(m) {
+  const l = { op: "mul", value: 2 };
+  /* 系数 1.0 = 加法门给「当前人数的 80%–120%」，也就是结果落在 1.8m–2.2m。
+     ×2 的增量正好是 +1.0m（结果 2m），所以两边势均力敌：
+     骰到 >100% 时加法赢，骰到 <100% 时乘法赢 —— 这才是"算一下再选"。
+     **不是 2.0**：2.0 会让加法变成 +2m（结果 3m），永远碾压 ×2，等于送分。 */
+  const r = { op: "add", value: addValue(1.0, m) };
+  return Math.random() < 0.5 ? [l, r] : [r, l];
+}
+
+function mulVsDiv() {
+  const l = { op: "mul", value: 2 };
+  const r = { op: "div", value: 2 };
+  return Math.random() < 0.5 ? [l, r] : [r, l];
+}
+
 function makePair() {
   const m = Math.max(1, Math.round(Squad.count));
   /* 开场教学期与人数极少时不出陷阱门：
      m = 1 时 ÷2 还是 1（round(0.5) 被下限钳回 1），陷阱等于不存在；
-     m ≤ 3 时 -n 也只是擦破皮，玩家会学到"陷阱不用怕"这个错的结论。
-     文档 §7.3 也是这么排的：0–20 秒只有人数门，先学会比大小。 */
+     m ≤ 3 时 -n 也只是擦破皮，玩家会学到"陷阱不用怕"这个错的结论。 */
   const noTrap = simT < 20 || m <= 3;
+  const t = simT, r = Math.random();
   let left, right;
 
-  /* P2 阶段武器门还没实现（P4.4 才接），所以配对权重临时改成
-     「人数 vs 人数 70% / 正向 vs 陷阱 30%」。
-     P4.4 之后恢复文档里的 40 / 45 / 15。 */
-  if (noTrap || Math.random() < 0.70) {
-    // 人数 vs 人数：×2 对 +n(n ≈ m ±20%)
-    left  = { op: "mul", value: 2 };
-    right = { op: "add", value: addValue(1.0, m) };
-    if (Math.random() < 0.5) [left, right] = [right, left];
-  } else if (Math.random() < 0.5) {
-    // 正向 vs 陷阱：×2 对 ÷2
-    left  = { op: "mul", value: 2 };
-    right = { op: "div", value: 2 };
-    if (Math.random() < 0.5) [left, right] = [right, left];
+  if (t < 30) {
+    [left, right] = smallAddPair(m);
+  } else if (t < 60) {
+    [left, right] = r < 0.85 ? smallAddPair(m) : mulVsAdd(m);
+  } else if (t < 100) {
+    [left, right] = r < 0.55 ? smallAddPair(m) : r < 0.90 ? mulVsAdd(m) : mulVsDiv();
+  } else if (noTrap || r < 0.35) {
+    [left, right] = smallAddPair(m);
+  } else if (r < 0.80) {
+    [left, right] = mulVsAdd(m);
   } else {
-    // 正向 vs 陷阱：+n 对 -n（同系数 0.6，镜像对称）
-    left  = { op: "add", value: addValue(0.6, m) };
-    right = { op: "sub", value: addValue(0.6, m) };
-    if (Math.random() < 0.5) [left, right] = [right, left];
+    [left, right] = mulVsDiv();
   }
 
   return {
-    z: SCROLL * rand(GATE.intervalMin, GATE.intervalMax),   // 屏外生成，自己滚进来
+    z: gateSpawnZ(),        // 屏外生成（且整块离线），自己滚进来
     left, right,
     resolved: false,
     fade: 1,
@@ -1558,11 +1665,11 @@ function updateGates(dt) {
 function drawGate(g, side, z, alpha) {
   const cx = side * GATE.cx;
   const p = project(cx, z);
-  /* 顶部让位：门从画面顶端进场时，左上角的人数卡正好压着左门的左边。
-     P2 把卡片缩到 119 px 只是让"数字中心"漏出来，门框本身还是被切掉一块。
-     这里让门在 y < 84 的区间按高度淡入 —— 视觉上读成"从雾里显形"，
+  /* 顶部让位：门从画面顶端进场时，左上角的队伍铭牌正好压着左门的左上角。
+     门高从 76 提到 134 px 之后，靠"把卡片缩小"已经解决不了 —— 必须让门
+     在 y < 150 的区间按中心高度淡入。视觉上读成"从雾里显形"，
      既解决了遮挡，又比"凭空出现在半屏"自然。 */
-  alpha *= clamp((p.y - 4) / 80, 0, 1);
+  alpha *= clamp((p.y - 62) / 88, 0, 1);
   const hw = GATE.w / 2 * PPM;
   const hh = GATE.d / 2 * PPM;
   const x0 = p.x - hw, y0 = p.y - hh, wpx = hw * 2, hpx = hh * 2;
@@ -1570,7 +1677,6 @@ function drawGate(g, side, z, alpha) {
 
   // 脉冲：陷阱门必须比正向门更抢眼，否则没人会上当（§6.2.4 硬规则 5）
   const pulse = trap ? 0.80 + 0.20 * Math.sin(simT * 7) : 1;
-  const deep = trap ? "#8c2f52" : "#0d6b4c";
   const edge = trap ? "#ED93B1" : "#5DCAA5";
 
   ctx.save();
@@ -1590,21 +1696,39 @@ function drawGate(g, side, z, alpha) {
   ctx.fillStyle = tail;
   ctx.fillRect(x0 + 3, y0 + hpx, wpx - 6, 30);
 
-  // 门区本体：上深下浅。圆角必须小，10px 以上会立刻读成"UI 卡片"
+  /* 门区本体：**必须能透过去看到后面的丧尸**。
+     门高 134 px 之后，一块不透明的色块会在它路过的那 4 秒里把整片尸潮盖掉，
+     玩家看到的是"两张大卡片在桥上滑"，而不是"一道能量幕"。
+     所以底色改成 80% → 38% 的纵向渐变（上浓下淡），再叠竖条纹当光幕。
+     圆角仍然是 4 px：10 px 以上立刻读成 UI 卡片。 */
+  const rgb = trap ? "140,47,82" : "13,107,76";
   const bg = ctx.createLinearGradient(0, y0, 0, y0 + hpx);
-  bg.addColorStop(0, deep);
-  bg.addColorStop(.62, deep);
-  bg.addColorStop(1, trap ? "rgba(140,47,82,.62)" : "rgba(13,107,76,.62)");
+  bg.addColorStop(0, "rgba(" + rgb + ",.62)");
+  bg.addColorStop(.5, "rgba(" + rgb + ",.46)");
+  bg.addColorStop(1, "rgba(" + rgb + ",.24)");
   ctx.fillStyle = bg;
   roundRect(ctx, x0, y0, wpx, hpx, 4);
   ctx.fill();
 
-  // 光幕条纹：横向扫描线，把它从"色块"变成"能量场"。太密会糊，7px 刚好
+  // 光幕纹理：横扫描线（密度）+ 竖光条（方向）。只加纹理，不加不透明度
   ctx.save();
   roundRect(ctx, x0, y0, wpx, hpx, 4);
   ctx.clip();
-  ctx.fillStyle = "rgba(255,255,255,.055)";
+  ctx.fillStyle = "rgba(255,255,255,.07)";
   for (let yy = y0 + 4; yy < y0 + hpx; yy += 7) ctx.fillRect(x0, yy, wpx, 1.6);
+  for (let xx = x0 + 10; xx < x0 + wpx - 6; xx += 26) {
+    const st = ctx.createLinearGradient(0, y0, 0, y0 + hpx);
+    st.addColorStop(0, "rgba(255,255,255,.14)");
+    st.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = st;
+    ctx.fillRect(xx, y0, 2.5, hpx);
+  }
+  // 近端内侧的一层辉光：让"迎上来"的那半扇门比远端更亮，读成有朝向的光场
+  const inGlow = ctx.createLinearGradient(0, y0, 0, y0 + hpx * .45);
+  inGlow.addColorStop(0, trap ? "rgba(237,147,177,.34)" : "rgba(120,232,196,.34)");
+  inGlow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = inGlow;
+  ctx.fillRect(x0, y0, wpx, hpx * .45);
   ctx.restore();
 
   // 远侧光刃：门"迎上来"的那一边必须最亮，这是门的正面
@@ -1634,10 +1758,11 @@ function drawGate(g, side, z, alpha) {
     ctx.beginPath(); ctx.arc(bx - 1, by - 1.2, 1.6, 0, Math.PI * 2); ctx.fill();
   }
 
-  // 数字 / 符号：字号按位数自适应（§6.2.7），四位数下限 4% 屏高
+  /* 数字 / 符号：字号按位数自适应（§6.2.7）。
+     门高 134 px 之后字可以放大一档 —— 原来 5% 屏高是被 76 px 的框逼出来的。 */
   const text = gateLabel(g);
   const digits = text.length;
-  const size = (digits <= 2 ? 0.058 : digits === 3 ? 0.049 : 0.040) * H * (trap ? 1.06 : 1);
+  const size = (digits <= 2 ? 0.076 : digits === 3 ? 0.062 : 0.048) * H * (trap ? 1.06 : 1);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = "800 " + size.toFixed(1) + "px ui-monospace,Menlo,Consolas,monospace";
@@ -1917,14 +2042,41 @@ setInterval(updateDebug, 250);
 /* =========================================================================
    HUD / 启动
    ========================================================================= */
+/* ---------- 铭牌：武器位 ----------
+   四种枪各画一个 30×16 的剪影。P4 接武器门之后这里只换图标和等级，
+   布局一秒都不动 —— 现在就把位置留出来，玩家不会在 P4 见到"UI 突然变高"。 */
+const GUN_ICON = {
+  pistol:  '<rect x="5" y="4" width="13" height="4.2"/><rect x="6.5" y="8" width="5" height="6"/>' +
+           '<rect x="14" y="8.2" width="4" height="2.6" opacity=".45"/>',
+  rifle:   '<rect x="1" y="6.2" width="21" height="3.4"/><rect x="6" y="9.4" width="5" height="5"/>' +
+           '<rect x="9" y="4.6" width="10" height="1.6" opacity=".55"/>' +
+           '<rect x="21" y="6.8" width="8" height="2.2" opacity=".75"/>',
+  shotgun: '<rect x="1" y="5.4" width="27" height="2.6"/><rect x="1" y="8.4" width="27" height="2.6" opacity=".55"/>' +
+           '<rect x="4" y="4.4" width="7" height="8" opacity=".8"/>',
+  sniper:  '<rect x="1" y="6.2" width="6" height="3.8"/><rect x="6" y="7.4" width="22" height="2"/>' +
+           '<rect x="11" y="4.2" width="8" height="2.4"/><rect x="15" y="9.2" width="3.2" height="4.2"/>'
+};
 function updateHudWeapon() {
   const names = { pistol: "手枪", rifle: "步枪", shotgun: "霰弹枪", sniper: "狙击枪" };
   const lv = Squad.weapon === "pistol" ? "k " + Squad.k.toFixed(2) : "Lv " + Squad.level;
-  $("hudWeapon").innerHTML =
-    '<svg width="26" height="12" viewBox="0 0 26 12"><rect x="2" y="3" width="16" height="3" fill="#F2E9D8"/><rect x="17" y="1" width="3" height="6" fill="#F2E9D8"/><rect x="5" y="6" width="4" height="5" fill="#F2E9D8"/></svg>' +
-    '<span>' + names[Squad.weapon] + '</span><span class="lv">' + lv + '</span>';
+  $("hudGunIcon").innerHTML =
+    '<svg width="30" height="16" viewBox="0 0 30 16" fill="currentColor">' +
+    (GUN_ICON[Squad.weapon] || GUN_ICON.pistol) + "</svg>";
+  $("hudGunName").textContent = names[Squad.weapon] || "手枪";
+  $("hudGunLv").textContent = lv;
 }
 updateHudWeapon();
+
+/* 铭牌配色跟着 21 档走：卡片左侧竖条、人数、枪的剪影三者同色，
+   低头看一眼就知道自己现在是第几档，不用去数身上有几块紫。
+   每 80ms 调一次，但只在档位真的变了才写一次 CSS 变量。 */
+let lastTeamHex = "";
+function syncHudTeam() {
+  const hex = tierColor(Squad.peakTier);
+  if (hex === lastTeamHex) return;
+  lastTeamHex = hex;
+  $("hudSquad").style.setProperty("--team", hex);
+}
 
 /* 人数弹跳：只在穿门那一瞬间缩一下，用来确认"这一脚算数了" */
 let bumpTimer = 0;
@@ -1942,6 +2094,7 @@ function mmss(s) {
 function updateHud() {
   if (phase !== "PLAY") return;
   $("hudN").textContent = abbr(Math.round(Squad.shown));
+  syncHudTeam();
   $("hudDist").textContent = Math.round(scrollM);
   $("hudTime").textContent = mmss(simT);
   /* 第三行显示当前编队名。P3 的三种编队必须在**文字上**也能确认，
@@ -1955,6 +2108,12 @@ setInterval(updateHud, 80);
 
 function startGame() {
   phase = "PLAY";
+  /* 计时必须从"进入断桥"这一刻归零。
+     simT 在启动页也在走（那里的桥要滚动），如果玩家在标题页停留一分钟再开，
+     门的分档表、丧尸编队、速度曲线会直接从"中盘"开始 —— 教学期被静默跳过。
+     之前所有时间阈值都在 20 秒之后才算数，看不出问题；v0.20 把 0–70 秒
+     全部改成了分档，这个坑就藏不住了。 */
+  simT = 0;
   $("boot").classList.add("hidden");
   $("hud").classList.add("on");
   updateHudWeapon();

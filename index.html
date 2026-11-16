@@ -262,6 +262,23 @@
   }
   #againBtn:hover{background:#fff}
   #againBtn:active{transform:scale(.98)}
+  /* 评级：一枚压在标题上的方章。只看时间，不看别的（§6.7）。 */
+  #over .over-rank{
+    position:absolute;top:calc(var(--u,1px)*54);right:calc(var(--u,1px)*40);
+    width:calc(var(--u,1px)*52);height:calc(var(--u,1px)*52);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:calc(var(--u,1px)*30);font-weight:500;
+    color:var(--bone);border:1px solid rgba(242,233,216,.42);
+    transform:rotate(-6deg);opacity:.82;
+  }
+  /* 死因：**尸检报告的第一行**。玩家必须一眼看到"我是被谁弄死的"。 */
+  #over .over-cause{
+    margin-top:calc(var(--u,1px)*14);text-align:center;
+    font-size:calc(var(--u,1px)*12.5);letter-spacing:calc(var(--u,1px)*1.4);
+    color:rgba(242,233,216,.66);line-height:1.6;
+  }
+  #over .over-rows b.neg{color:#ED93B1}
+  #over .over-rows b.pos{color:#5DCAA5}
   .hud-right{
     text-align:right;font-family:var(--mono);font-size:calc(var(--u,1px)*10.5);line-height:1.65;color:var(--muted);
     background:rgba(22,32,42,.48);border:1px solid rgba(242,233,216,.10);
@@ -269,11 +286,83 @@
     padding:calc(var(--u,1px)*5) calc(var(--u,1px)*9);
   }
   .hud-right b{color:var(--bone);font-weight:500}
+
+  /* ---------- Boss：警示条 + 血条（§6.6.0） ----------
+     Boss 自己铺满画面，所以它不能用"气泡对话框"那种局部 UI。
+     这里只给两样东西：**一条横贯桥宽的警示**（预告那 5 秒）和
+     **一条贴在顶部的血条**（打的时候唯一需要读的数字）。
+     两者都不许压住 HUD 铭牌 —— 血条从 y=76 起，正好在铭牌下面。 */
+  .boss-warn{
+    position:absolute;top:calc(var(--u,1px)*148);left:0;right:0;
+    text-align:center;font-size:calc(var(--u,1px)*15);
+    letter-spacing:calc(var(--u,1px)*7);
+    color:#F0B03C;text-shadow:0 2px 10px rgba(30,10,0,.6);
+    opacity:0;transition:opacity .3s ease;
+  }
+  .boss-warn.on{opacity:1;animation:bossPulse 1s ease-in-out infinite}
+  .boss-warn span{
+    display:inline-block;width:calc(var(--u,1px)*7);height:calc(var(--u,1px)*7);
+    margin-right:calc(var(--u,1px)*10);border-radius:50%;
+    background:#D9484F;vertical-align:middle;
+  }
+  @keyframes bossPulse{0%,100%{opacity:.42}50%{opacity:1}}
+
+  .boss-bar{
+    position:absolute;top:calc(var(--u,1px)*76);left:calc(var(--u,1px)*12);right:calc(var(--u,1px)*12);
+    opacity:0;transition:opacity .35s ease;
+  }
+  .boss-bar.on{opacity:1}
+  .bb-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-family:var(--mono);font-size:calc(var(--u,1px)*10);
+    letter-spacing:calc(var(--u,1px)*1.6);color:rgba(242,233,216,.80);
+    margin-bottom:calc(var(--u,1px)*4);
+    /* 血条压在亮桥面上，浅色字会消失 —— 每一行都自带深色底卡 + 描边 */
+    background:rgba(14,20,26,.52);
+    padding:calc(var(--u,1px)*2) calc(var(--u,1px)*5);
+  }
+  .bb-head b{color:#F0B03C;font-weight:500}
+  /* 中段那句提示原来单独占一行（.bb-hint），结果和开场提示 hudHint 撞在同一个 y 上，
+     两行灰字叠着谁都读不清。改成塞进头行中间：一行放得下三样东西
+     （第几个 / 怎么打 / 还剩几下），高度只占一行的位置。 */
+  .bb-mid{
+    flex:1;text-align:center;padding:0 calc(var(--u,1px)*8);
+    font-size:calc(var(--u,1px)*9);letter-spacing:calc(var(--u,1px)*1.2);
+    color:rgba(242,233,216,.62);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;
+  }
+  .bb-track{
+    position:relative;height:calc(var(--u,1px)*6);
+    background:rgba(14,20,26,.80);
+    box-shadow:inset 0 0 0 1px rgba(242,233,216,.28);
+    overflow:hidden;
+  }
+  /* 血条切成四格：**剩下的每一格就是还没挨的一下**。
+     不做这条刻度，玩家只能读到一个百分比；做了之后他一眼知道"还剩两下"。 */
+  .bb-track::after{
+    content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(to right,transparent 0,transparent calc(25% - 1.5px),rgba(10,15,20,.95) calc(25% - 1.5px),rgba(10,15,20,.95) 25%);
+    pointer-events:none;
+  }
+  #bossFill{
+    display:block;height:100%;width:100%;
+    background:linear-gradient(to right,#8C2F3A,#D9484F 55%,#F0B03C);
+    transform-origin:left center;transition:width .28s ease;
+  }
+  .bb-hint{
+    margin-top:calc(var(--u,1px)*4);
+    font-family:var(--mono);font-size:calc(var(--u,1px)*9);
+    letter-spacing:calc(var(--u,1px)*1.4);color:rgba(242,233,216,.72);
+    text-align:right;
+    background:rgba(14,20,26,.52);
+    padding:calc(var(--u,1px)*1) calc(var(--u,1px)*5);
+    display:inline-block;float:right;
+  }
   .hud-bottom{
     /* 原来贴在 bottom:14px，正好压在队伍后腿上（队伍锚点 y≈813，后排在 900+）。
        挪到顶部 HUD 下方：那里前 3.5 秒一定没有门（第一对门要 3.5–4.5 秒才到），
        而提示本来也只在开场几秒有效。 */
-    position:absolute;top:calc(var(--u,1px)*76);left:0;right:0;
+    position:absolute;top:calc(var(--u,1px)*104);left:0;right:0;
     transition:opacity .9s ease;
     text-align:center;
     font-size:calc(var(--u,1px)*11);
@@ -354,7 +443,17 @@
             <div id="hudFormation">— 无遭遇 —</div>
           </div>
         </div>
-        <div class="hud-bottom" id="hudHint">v0.22 · 武器与战斗　左右拖动选门 · D 调试</div>
+        <div class="boss-warn" id="bossWarn"><span></span>巨 型 来 了</div>
+        <div class="boss-bar" id="bossBar">
+          <div class="bb-head">
+            <span>巨 型 · 第 <b id="bossNo">1</b> 个</span>
+            <span class="bb-mid" id="bossHint">四次挥击 · 躲不掉</span>
+            <span id="bossPct">4 / 4 下</span>
+          </div>
+          <div class="bb-track"><i id="bossFill"></i></div>
+        </div>
+        <div class="hud-bottom" id="hudHint">v0.23 · 时间轴与 Boss　左右拖动选门 · D 调试</div>
+
       </div>
 
       <div id="fpsBadge"></div>
@@ -362,7 +461,7 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · v0.22 武器与战斗</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · v0.23 时间轴与 Boss</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
@@ -416,7 +515,7 @@
         <div>
           <div class="boot-top">
             <div class="tag">末 日 高 架</div>
-            <div class="stage-pill">P4 / 07</div>
+            <div class="stage-pill">P6 / 07</div>
           </div>
           <div class="title-wrap">
             <h1 class="title">Z<span>-</span>RUSH</h1>
@@ -426,7 +525,7 @@
         <div class="boot-mid">
           <div>视角 <b>正俯视</b> · 战场占屏 <b>83%</b></div>
           <div>队伍 <b>21 档</b> · 显示上限 <b>24</b> 人</div>
-          <div>丧尸 <b>5 列</b> · 尸潮 / 混编 / 精锐</div>
+          <div>每 <b>2 分钟</b> 一头 <b>巨型</b> · 四次挥击，躲不掉</div>
           <div>武器 <b>步枪 / 霰弹 / 狙击</b> · 升级 +20%</div>
         </div>
         <div class="boot-bottom">
@@ -437,14 +536,19 @@
 
       <div id="over">
         <div class="tag">断 桥 尽 头</div>
+        <div class="over-rank" id="overRank">D</div>
         <div class="over-lead"><b id="overPeak">0</b>人走到这里，全部留在了桥上</div>
+        <div class="over-cause" id="overCause">死于第 1 个 Boss</div>
         <div class="over-rows">
           <div><span>距离</span><b id="overDist">0 m</b></div>
           <div><span>坚持</span><b id="overTime">0:00</b></div>
+          <div><span>击杀 Boss</span><b id="overBoss">0</b></div>
+          <div><span>火力缺口（k/K）</span><b id="overRatio">1.00</b></div>
           <div><span>最高档位</span><b id="overTier">V1</b></div>
           <div><span>最后的枪</span><b id="overGun">手枪</b></div>
+          <div><span>总分</span><b id="overScore">0</b></div>
         </div>
-        <div class="over-note">换枪清零的是等级，不是命。<br>下一次，先看清是什么编队再选门。</div>
+        <div class="over-note" id="overNote">换枪清零的是等级，不是命。<br>下一次，先看清是什么编队再选门。</div>
         <button id="againBtn">再 冲 一 次</button>
       </div>
 
@@ -635,6 +739,63 @@ const COMBAT = {
   hitLine: (k) => clamp(2.0 + (k - 1.5) * 1.6, 1.35, VIEW_Z - 1.4)
 };
 
+/* =========================================================================
+   P6.3 · Boss 常量（§6.6）
+   -------------------------------------------------------------------------
+   Boss 不是"守在终点的关卡"，而是**每两分钟响一次的节拍器**：2:00、4:00、6:00…
+   它铺满整幅桥宽、一步一步走到脸上、挥四次，把这一局攒下的东西一次性结算掉。
+
+   两个数字必须分开看：
+     hpMul    —— Boss 的血量 = hpMul × 当波战斗力（生成那一刻锁死）
+     travel   —— 从"完整出现"到"走过队伍"用 7 秒，四挥各占约 1.3 秒
+   ========================================================================= */
+const BOSS = {
+  period: 120,             // 每 120 秒一次，首次在 2:00（§6.6.0）
+  warn: 5,                 // 现身 5 秒前预告：低频闷响 + 轻震 + 顶部警示
+  noWeaponBefore: 25,      // 出现前 25 秒不再刷武器门（换枪回本要 3 级 ≈ 25 秒）
+  /* ---- hpMul = 0.75，**这是对文档 1.5 的一处刻意偏离** ----
+     文档的 1.5 建立在 K 每分钟 ×1.6 上；本作 P4 实测把 K 定成了 ×1.9（§7.1.3），
+     于是 2:00 的 K 从 5.0 变成 10.8 —— 同一个 1.5 在这里等于"一次吃掉一条半命"。
+     用无头模拟扫过 0.6 / 0.75 / 1.0 / 1.5 四档（见 §13 P6 验收行）：
+       1.5  →  中等配置在**第 1 个 Boss 就团灭**，中位存活 2:05，验收不过
+       0.75 →  第 1 个 Boss 吃掉 12%(狙击) / 29%(步枪) / 59%(霰弹)，
+                第 2 个开始要命 —— 正好落在"中位存活 3–5 分钟"上
+     **换算关系没有变**：Boss 仍然 ≈ 一个半波次的量，只是那个"波次"按本作的
+     标定曲线算。改 K 的倍率必须回来重扫这一档，不能只看 0.75 这个数。 */
+  hpMul: 0.75,
+  z0: VIEW_Z + 1.1,        // 屏外缓冲：先露出一截肩，再整只压进来
+  zEnd: -1.7,              // 走过队伍身侧之后才消失（"踩过它的躯体"）
+  travel: 7.0,             // 秒。正俯视下这 7 秒就是"开奖"的全部窗口
+  /* 四次挥击的 z：顶部阅读区 → 中部交战区 → 中下部 → 接近接触线（§6.6.4）。
+     第 4 下离队伍只有 0.9 m = 76 px，正好压在队形上方，看得见砸地。 */
+  strikeZ: [7.2, 4.9, 2.7, 0.9],
+  stride: 2.35,            // 步幅（米）：stepPhase 由"走过的距离"推，脚步不会打滑
+  bodyW: 470               // 肩宽（逻辑 px）。比桥宽 504 px 略窄，两侧各裁掉一点
+};
+
+/* =========================================================================
+   P6.1 · Diff：全项目唯一时钟（§7.1 / §12.5）
+   -------------------------------------------------------------------------
+   速度、α、K、Boss 时刻、威胁等级全部从这一个 t 推。
+   **出现第二个累加器的那一天，就是难度开始漂移的那一天** —— 所以这里
+   不持有自己的时间，只做 simT 的只读代理；调用时传 t 可以算"未来"。
+
+   威胁等级（lv）是温度计，**只进 HUD 与视觉，禁止进任何公式**（§7.1.4）：
+   拿它当乘数会让难度变成"第 29 秒还很轻松、第 31 秒突然一堵墙"的阶梯跳变，
+   而难度必须是连续的，玩家才会觉得"我是一点点被压垮的"。
+   ========================================================================= */
+const Diff = {
+  t: () => simT,
+  v: (t) => speedAt(t === undefined ? simT : t),
+  alpha: (t) => COMBAT.alpha(t === undefined ? simT : t),
+  K: (t) => COMBAT.K(t === undefined ? simT : t),
+  lv: (t) => Math.min(99, Math.floor((t === undefined ? simT : t) / 30) + 1),
+  /* Boss 节拍读的是"已经出现/正在出现几个"这个唯一计数（bossNo），
+     而不是再由 t 反推一次 —— 两处各算一次就是两套时钟的开始。 */
+  nextBossAt: () => BOSS.period * (bossNo + (boss ? 1 : 0) + 1),
+  toBoss: () => BOSS.period * (bossNo + 1) - simT
+};
+
 /* ---------- 小工具 ---------- */
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp  = (a, b, t) => a + (b - a) * t;
@@ -683,11 +844,167 @@ window.addEventListener("resize", resize, { passive: true });
 window.addEventListener("orientationchange", () => setTimeout(resize, 120));
 
 /* =========================================================================
+   P5.6 · 音效：Web Audio 现场合成，零音频文件（§11）
+   -------------------------------------------------------------------------
+   两条硬要求：
+
+     1. **升级音与换枪音必须是一对反义词**：一个往上扬、0.3 秒、轻；
+        一个往下沉、1.2 秒、重。这是玩家闭眼分辨"我刚才赚了还是亏了"
+        的唯一通道 —— 两个音做得像，整套升级系统在感官上就是无效的。
+     2. **跳弹被护栏吞掉必须无声**（第二次碰撞不配音）。有声音会让人
+        以为又弹了一次，那条"只弹一次"的规则就白写了。
+
+   合成方式：所有打击类音效都从一份预生成的白噪声缓冲里切片 + 过滤波器，
+   枪声的"枪"是噪声，枪声的"响"是那个低频正弦。这样不需要任何素材。
+   ========================================================================= */
+const sfx = (() => {
+  let ac = null, bus = null, noise = null, dead = false, lastRic = 0;
+
+  function init() {
+    if (ac || dead) return ac;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { dead = true; return null; }
+    try {
+      ac = new AC();
+      bus = ac.createGain();
+      bus.gain.value = 0.5;
+      bus.connect(ac.destination);
+      const sr = ac.sampleRate;
+      noise = ac.createBuffer(1, sr, sr);
+      const d = noise.getChannelData(0);
+      let s = 20261117;
+      for (let i = 0; i < d.length; i++) {
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        d[i] = s / 0x3fffffff - 1;
+      }
+    } catch (e) { dead = true; ac = null; }
+    return ac;
+  }
+  /* 噪声段：type 决定"这是什么材质"，slide 给频率一条下潜曲线 */
+  function nz(dur, type, freq, q, gain, slide) {
+    const now = ac.currentTime;
+    const src = ac.createBufferSource();
+    src.buffer = noise;
+    const f = ac.createBiquadFilter();
+    f.type = type; f.frequency.setValueAtTime(freq, now); f.Q.value = q;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(gain, now + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    if (slide) f.frequency.exponentialRampToValueAtTime(slide, now + dur);
+    src.connect(f); f.connect(g); g.connect(bus);
+    src.start(now); src.stop(now + dur + 0.03);
+  }
+  /* 音高段：to 给滑音终点，delay 用来拼"双音" */
+  function tone(freq, dur, gain, type, to, delay) {
+    const now = ac.currentTime + (delay || 0);
+    const o = ac.createOscillator();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, now);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, now + dur);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(gain, now + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o.connect(g); g.connect(bus);
+    o.start(now); o.stop(now + dur + 0.03);
+  }
+
+  return {
+    /* 移动端要求首次手势后再 resume()，其余接口在没解锁时安静地空转 */
+    unlock() { const a = init(); if (a && a.state === "suspended") a.resume(); },
+    get ready() { return !!ac; },
+
+    shot(gun) {
+      if (!init()) return;
+      if (gun === "shotgun") {
+        nz(.17, "lowpass", 1200, .8, .20, 380);          // 沉重的一发 + 低频下压
+        tone(74, .17, .17, "sine", 46);
+      } else if (gun === "sniper") {
+        nz(.06, "bandpass", 2600, 1.4, .18);             // 脆
+        tone(190, .42, .045, "triangle", 88);            // 0.4 秒尾音回响
+      } else if (gun === "rifle") {
+        nz(.055, "bandpass", 1500, 1.1, .12);            // 中速连响，像缝纫机
+        tone(155, .05, .045, "square", 92);
+      } else {
+        nz(.05, "bandpass", 1900, 1.2, .075);            // 手枪：稀疏单响
+      }
+    },
+    /* 极短高频"叮——滋"，音量压在枪声之下。霰弹一轮能有几十颗撞护栏，
+       不限流会糊成一片白噪音，所以 45 ms 内只响一次。 */
+    ricochet() {
+      if (!init()) return;
+      const now = ac.currentTime;
+      if (now - lastRic < 0.045) return;
+      lastRic = now;
+      tone(2760 + rand(-160, 160), .07, .032, "sine", 2100);
+    },
+    hit() { if (init()) nz(.09, "lowpass", 620, .7, .09, 200); },   // 肉体闷响
+
+    /* 一对反义词：上扬 0.25 秒轻 / 下沉 1.2 秒重 */
+    upgrade() {
+      if (!init()) return;
+      tone(680, .09, .10, "triangle");
+      tone(1020, .14, .085, "triangle", null, .085);
+    },
+    swap() {
+      if (!init()) return;
+      tone(540, .9, .095, "sawtooth", 140);
+      nz(.75, "lowpass", 760, .7, .07, 170);
+      tone(62, .8, .11, "sine", 40);
+    },
+    gateGood() { if (init()) { tone(780, .08, .07, "sine"); tone(1170, .1, .055, "sine", null, .07); } },
+    trap() { if (init()) tone(430, .3, .09, "sawtooth", 150); },
+
+    /* ---- P6 · Boss 三种声音 ----
+       预告：极低频闷响（40 Hz 起），必须"闷"而不是"响" —— 巨物靠近时先传导的是
+       地面震动，不是空气里的尖叫。听到它，玩家会自己抬头。
+       落步：短促的地面闷击，和震屏同帧，读成"它踩了一脚"。
+       挥击：比普通命中的闷响低一个八度、长一倍，配上冲击波的白噪。 */
+    bossWarn() {
+      if (!init()) return;
+      tone(40, 1.6, .13, "sine", 29);
+      nz(1.5, "lowpass", 190, .6, .07, 90);
+    },
+    stomp() {
+      if (!init()) return;
+      tone(58, .22, .10, "sine", 34);
+      nz(.18, "lowpass", 420, .7, .07, 140);
+    },
+    bossHit() {
+      if (!init()) return;
+      tone(46, .55, .16, "sine", 24);
+      nz(.42, "lowpass", 340, .6, .13, 110);
+      tone(120, .3, .06, "square", 48);
+    },
+    bossDown() {
+      if (!init()) return;
+      tone(70, 1.5, .13, "sine", 26);
+      nz(1.3, "lowpass", 300, .6, .12, 60);
+    },
+    over() { if (init()) { tone(330, .95, .11, "sine", 68); nz(.7, "lowpass", 520, .7, .09, 120); } }
+  };
+})();
+
+/* 震屏（§P5.7）。偏移量在**每帧算一次**、存在 shakeX/shakeY 里，
+   由 project() 统一加 —— 不要在每个绘制函数里各 rand 一次，
+   那会让每一只丧尸、每一颗子弹往不同方向抖，画面会碎成一堆零件。 */
+let shake = 0, shakeX = 0, shakeY = 0;
+function addShake(v) { shake = Math.min(6.5, shake + v); }
+function decayShake(dt) {
+  if (shake <= 0) { shake = shakeX = shakeY = 0; return; }
+  shake = Math.max(0, shake - dt * 26);
+  shakeX = rand(-1, 1) * shake;
+  shakeY = rand(-1, 1) * shake * 0.8;   // 纵向少抖一点：竖版画面上下晃最晕
+}
+
+/* =========================================================================
    投影：正俯视 = 一次线性映射，没有除法、没有缩放随距离变化。
    z 是世界前方距离（米），越大越远（屏幕越靠上）；x 是横向（米）。
+   震屏偏移也在这里加：所有实体都走 project()，一处改、全体一致。
    ========================================================================= */
 function project(x, z) {
-  return { x: W / 2 + x * PPM, y: SQUAD_Y - z * PPM, s: PPM };
+  return { x: W / 2 + x * PPM + shakeX, y: SQUAD_Y - z * PPM + shakeY, s: PPM };
 }
 function groundY(z) { return SQUAD_Y - z * PPM; }
 function unprojectY(sy) { return (SQUAD_Y - sy) / PPM; }
@@ -1577,6 +1894,11 @@ function addHitPower(p, k, waveId) {
   if (take >= Squad.count) {
     Squad.count = 0;
     spillCasualties(6);
+    /* 尸检报告：被普通波磨死与被 Boss 打死是两种完全不同的死法，
+       第一行必须分开写（§6.7）。这里记下"杀死你的那一波吃掉多少"。 */
+    deathCause = "wave";
+    deathPct = take / Math.max(1, rec.n0);
+    deathRatio = Squad.k / Math.max(0.1, COMBAT.K(simT));
     gameOver();
     return;
   }
@@ -1584,6 +1906,10 @@ function addHitPower(p, k, waveId) {
   spillCasualties(take);
   Squad.pulse = 0.16;
   hudBump();
+  /* 迎面撞击：短促肉体闷响 + 一下震屏。撞的人越多抖得越狠 ——
+     "我的人在被吃掉"必须有物理反馈，否则只是数字在减（§P5.4 / P5.7）。 */
+  sfx.hit();
+  addShake(Math.min(4.5, 0.6 + Math.log10(1 + take) * 1.6));
   if (waveHit.size > 6) {
     for (const key of waveHit.keys()) if (key <= waveId - 5) waveHit.delete(key);
   }
@@ -1610,10 +1936,14 @@ function previewLoss() {
 
 function updateZombies(dt) {
   if (phase === "PLAY") {
-    waveTimer -= dt;
-    if (waveTimer <= 0) {
-      spawnWave();
-      waveTimer = waveGap();
+    /* Boss 战期间不刷普通波：Boss 已经是这一段的全部压力。
+       两件事同时压上来，玩家会分不清"是哪一边吃掉了我的人"。 */
+    if (!bossBlocks()) {
+      waveTimer -= dt;
+      if (waveTimer <= 0) {
+        spawnWave();
+        waveTimer = waveGap();
+      }
     }
   }
 
@@ -1992,6 +2322,14 @@ function makePair() {
      而玩家还没被"教"过武器门长什么样。第一次必须由系统递到手里。 */
   if (kind !== "weapon" && weaponShown === 0 && t >= 20 && pairCount >= 2) kind = "weapon";
 
+  /* ---- Boss 前 25 秒不许出武器门（§6.2.5 硬规则）----
+     换枪之后要连爬 3 级同类门才回本，而那正好是 ~25 秒。
+     在这个窗口递一道 `⇄`，等于"交卷前给你换笔的时间"—— 那不是选择，是陷阱。
+     **注意：这里不是"把武器门删掉"，而是把它降级成人数门。**
+     直接删会让玩家遇到一对空门（两边都不给东西），那比不出更糟。 */
+  const toBoss = Diff.toBoss();
+  if (kind === "weapon" && toBoss <= BOSS.noWeaponBefore) kind = "add";
+
   if (kind === "weapon") {
     const wg = makeWeaponGate();
     /* 对面那道人数门系数 0.20 ⇒ 给 m 的 16%–24%，和"升一级 k（+20%）"
@@ -2065,6 +2403,10 @@ function resolvePair() {
   const isW = g.op === "weapon";
   applyGate(g);
   const after = Squad.count;
+  /* 记下"穿过去之后的确切人数"。这不参与任何逻辑，是给自检用的：
+     门结算和"同一帧被咬"是在同一次 step 里发生的，从外面看只能看到
+     两者叠加的结果，无法区分"门算错了"和"门算对了但这一帧掉了两千人"。 */
+  pair.afterCount = after;
 
   const cx = W / 2 + (g === pair.left ? -GATE.cx : GATE.cx) * PPM;
   if (isW) {
@@ -2077,11 +2419,13 @@ function resolvePair() {
     /* 升级轻快、换枪沉重（§6.3.10）：换枪的闪白更长更冷，读成"重新上膛"。 */
     Squad.flash = g.up ? 0.30 : 0.46;
     hudGunFlash(g.up);
+    if (g.up) sfx.upgrade(); else sfx.swap();     // 一对反义词，见 sfx 注释
   } else {
     const color = g.op === "sub" || g.op === "div" ? PAL.pink : PAL.teal;
     burst(cx, SQUAD_Y - 24, color, 26);
     addFloater(gateLabel(g), cx, SQUAD_Y - 56, color, 40);
     addFloater((after >= before ? "+" : "") + (after - before), cx, SQUAD_Y - 104, "#ffffff", 30);
+    if (g.op === "sub" || g.op === "div") sfx.trap(); else sfx.gateGood();
   }
   Squad.pulse = 0.22;                // 队伍整体弹一下：确认"这一脚真的算数了"
   hudBump();
@@ -2122,6 +2466,16 @@ function gateLabel(g) {
 }
 
 function updateGates(dt) {
+  /* **门组不会跨过 Boss 战**：Boss 现身后到它倒下之前，所有门暂停生成（§6.2.5）。
+     预告窗口（5 秒）也停 —— 玩家那 5 秒要抬头看，不该再分心读两道门。 */
+  if (bossBlocks()) {
+    if (!pair) return;
+    /* 已经存在的门就地清掉：留着它会在 Boss 身上叠着一起结算，
+       而 Boss 的账必须单独结 —— 混在一起会让尸检报告里的数字对不上。 */
+    pair.fade -= dt * 3.2;
+    if (pair.fade <= 0) pair = null;
+    return;
+  }
   if (!pair) { spawnPair(); return; }
   pair.z -= SCROLL * dt;
   if (!pair.resolved && pair.z <= 0) resolvePair();
@@ -2134,7 +2488,6 @@ function updateGates(dt) {
   }
   pairMaxAlive = Math.max(pairMaxAlive, pair ? 1 : 0);
 }
-
 /* ---------- 门区绘制 ----------
    两门贴紧之后，**内侧边必须是直角**：一旦按 4 px 圆角收口，中线处会露出
    两个 4×4 的缺口，看起来就是"门和门之间还是有条缝"——正好把改动目的抹掉。
@@ -2474,7 +2827,37 @@ function drawGates() {
 }
 
 /* =========================================================================
-   P4.3 · 战斗表现：被咬倒下的战士 / 枪口火光 / 曳光弹
+   P6 · Boss 战（§6.6）
+   -------------------------------------------------------------------------
+   四件事必须同时成立，缺一件这段就不成立：
+
+     1. **周期化**。每 120 秒一次，第一次在 2:00。玩家于是会自己数
+        "我撑过三个了" —— 这是无限模式里唯一一个由玩家自己数出来的成绩。
+     2. **打不着才算躲得掉**。伤害与位置**彻底解耦**：站最左、最右、正中间，
+        扣的人完全一样。所以判定里不能出现 colCovered、不能出现 x。
+     3. **画面上必须兑现"躲不掉"**。四次挥击各配一圈横贯全桥的冲击波 + 桥面裂纹，
+        否则玩家会以为"我明明躲开了却没躲开"是 bug。
+     4. **结算只有一次**。Boss 的血 / 总消耗 / 四下分配在**现身那一刻**算完锁死。
+        中途 k 变了（换编队、换枪）都不许重算 —— 那会让"看见它的那一刻就已经
+        注定了胜负"这条设计泄光。
+
+   数值上还有一处刻意偏离：hpMul 用 0.75 而不是文档的 1.5（理由写在 BOSS 常量处）。
+   ========================================================================= */
+let boss = null;
+let bossNo = 0;              // 已经出现过几个（同时也是"当前是第几个"）
+let bossKills = 0;           // 打退（存活下来）几个
+let bossWarnT = 0;           // 预告倒计时，>0 时顶部亮警示
+let bossWarnedFor = -1;      // 已经预告过的是"第几个" —— 防止同一轮预告重复触发
+let deathCause = "";         // 尸检报告：死于什么（§6.7）
+let deathPct = 0;            // 最后一击吃掉多少比例
+let deathRatio = 1;          // 死亡瞬间的 k/K
+const bossWaves = [];        // 冲击波（纯表现）
+
+function bossActive() { return !!boss && boss.phase !== "down"; }
+function bossBlocks() { return bossWarnT > 0 || !!boss; }
+
+/* =========================================================================
+   P4.3 · 战斗表现：被咬倒下的战士 / 伤亡抛飞
    -------------------------------------------------------------------------
    数值上人是一格一格掉的，画面上必须有对应的东西掉出去，否则玩家只看见
    一个数字在减，读起来像扣分而不是"我的人在死"。
@@ -2532,98 +2915,857 @@ function drawCasualties() {
   }
 }
 
-const tracers = [];
-/* 枪口相对战士"脚下投影点"的偏移。drawWeapon 画在 (px+12, py-15)，
-   所以枪口取 (px+16, py-16) —— 和枪身末端对齐，不悬空。 */
-const MUZZLE_DX = 16, MUZZLE_DY = -16;
+/* =========================================================================
+   P6 · Boss 的逻辑：预告 → 迈步 → 四挥 → 倒下
+   -------------------------------------------------------------------------
+   一个容易做错的地方：**Boss 的 z 不是自己的速度，是世界把它送过来的**。
+   如果这里写 `boss.z -= bossSpeed * dt`，那么等速度封顶之后，Boss 会明显
+   比门和丧尸"走得快" —— 因为它们全都吃 SCROLL。所以这里和丧尸一模一样：
+   只减 SCROLL，再叠一点点自己的走路（让"它在走"这件事成立）。
+
+   四挥的触发按 **z 过线**，不按时间。理由同 §6.6.3：数值上它是被送来的，
+   画面上它是走来的 —— 两者必须严丝合缝，否则脚步会打滑。
+   ========================================================================= */
+function summonBoss() {
+  bossNo++;
+  /* 血量与总消耗**在现身这一刻**算完并锁死：
+       M_wave 用 Boss 出现时的波次战斗力（α·K·N^0.9），K 查**精锐**那一列
+       —— Boss 就是一只超大号的壮汉（§6.6.4）。
+     所以"狙击打 Boss 轻松、霰弹打 Boss 是自找的"是自然结果，不需要特殊代码。 */
+  const N = Math.max(1, Math.round(Squad.count));
+  const M = COMBAT.wavePower(simT, N);
+  const hp = Math.round(M * BOSS.hpMul);
+  const kPride = kOf(Squad.weapon, "elite", Squad.level);
+  const total = Math.max(1, Math.ceil(hp / Math.max(0.4, kPride)));
+  /* 四下分配：**前三下各占 1/4，第四下拿走余数**。
+     ceil(hp/k) 不一定能被 4 整除，而"最后一下最重"是刻意的：
+     玩家会盯着那个数字落地，落在一个整数上才读得出"见底了"。 */
+  const q = Math.floor(total / 4);
+  const strikes = [q, q, q, total - q * 3].filter((v) => v > 0);
+  while (strikes.length < 4) strikes.push(0);
+
+  boss = {
+    no: bossNo,
+    z: BOSS.z0,
+    hp, hp0: hp, total, kPride,
+    strikes,            // 每一下扣多少人（已锁死）
+    si: 0,              // 已挥了几下
+    phase: "walk",      // walk → strike → down
+    t: 0,               // 本阶段已过的秒数
+    stepPhase: 0,
+    lastStep: 0,
+    stepShake: 0,
+    flash: 0,
+    hitMarks: [],       // 被子弹打中的白点（§6.4.7：远程压制必须可见）
+  };
+  sfx.bossWarn();
+  addShake(4.2);
+  addFloater("第 " + bossNo + " 个 · 巨 型", W / 2, SQUAD_Y - 300, "#F0B03C", 30);
+  /* 门立刻清场：门组不会跨过 Boss 战（§6.2.5）。
+     **直接置 null，不要写成 resolved = true** —— 那会让门外表上"已结算"，
+     而 resolvePair 从未跑过，afterCount 是 undefined。之后任何按
+     "resolved 且拿 afterCount"核对人数的代码都会读到 NaN 并误判成门算错了。 */
+  pair = null;
+  waveTimer = Math.max(waveTimer, 6);        // Boss 期间不再刷普通波，给 6 秒喘息
+}
+
+/* 一次挥击：扣人 + 冲击波 + 震屏 + 红闪。
+   **这里没有 colCovered、没有 Squad.x** —— 位置一律不参与。 */
+function bossStrike() {
+  const b = boss;
+  if (!b) return 0;
+  const take = b.strikes[Math.min(b.si, 3)] || 0;
+  b.si++;
+
+  /* 冲击波：从 Boss 脚下向外扩散，z 取它当前的落点。
+     这是"躲不掉"在画面上的唯一兑现（§6.6.1）。 */
+  const zAt = Math.max(0.5, b.z);
+  bossWaves.push({ z: zAt, t: 0, life: 1.05, kind: b.si === 4 ? "final" : "hit" });
+  const p = project(0, zAt);
+  burst(p.x, p.y, "#F0E4CE", 22);
+  for (let x = -FIELD_HALF; x <= FIELD_HALF; x += 0.45) {
+    const q = project(x, zAt + rand(-.3, .3));
+    parts.push({ x: q.x, y: q.y, vx: rand(-30, 30), vy: rand(-120, -40), life: rand(.4, .8), t: 0, c: "rgba(120,132,140,.9)", s: rand(2, 5) });
+  }
+  addShake(b.si === 4 ? 6.2 : 3.6);
+  sfx.bossHit();
+  bossRedFlash();
+
+  if (take <= 0) return 0;
+  const n0 = Squad.count;
+  const pct = take / Math.max(1, n0);
+
+  /* **Boss 伤害不吃单波 55% 上限。** 那条上限是给普通波用的（防止"瞬间暴毙"），
+     而 Boss 的全部意义就是"见底" —— 它必须能一次把人打光，否则"第几个 Boss
+     是你的坟"这件事就不成立。 */
+  if (take >= Squad.count) {
+    deathCause = "boss";
+    deathPct = pct;
+    deathRatio = Squad.k / Math.max(0.1, COMBAT.K(simT));
+    Squad.count = 0;
+    spillCasualties(6);
+    Squad.pulse = 0.3;
+    hudBump();
+    gameOver();
+    return take;
+  }
+  Squad.count -= take;
+  spillCasualties(take);
+  Squad.pulse = 0.26;
+  hudBump();
+  sfx.hit();
+  return take;
+}
+
+/* 全屏红闪：只在第 3 下（俯身撕咬）用。
+   一次一帧都不该多用 —— 红闪是"我受伤了"的最终表达，用多了会变成氛围色。 */
+let redFlash = 0;
+function bossRedFlash() { redFlash = Math.min(1, redFlash + 0.34); }
+function updateRedFlash(dt) {
+  if (redFlash > 0) redFlash = Math.max(0, redFlash - dt * 2.2);
+  for (let i = bossWaves.length - 1; i >= 0; i--) {
+    const w = bossWaves[i];
+    w.t += dt;
+    if (w.t >= w.life) bossWaves.splice(i, 1);
+  }
+}
+
+function updateBoss(dt) {
+  /* ---- 预告窗口 ----
+     §6.6.0 那条"必须可预告"：现身 5 秒前，低频闷响 + 地面轻震 + 顶部警示。
+     这里只负责计时和最后一下召唤；视觉在 updateHud / drawBossWarn 里。 */
+  const toB = Diff.toBoss();
+  const nextNo = bossNo + 1;
+  if (!boss && toB <= BOSS.warn && toB > 0 && bossWarnedFor !== nextNo) {
+    bossWarnedFor = nextNo;
+    bossWarnT = BOSS.warn;
+    sfx.bossWarn();
+    addShake(1.6);
+  }
+  if (bossWarnT > 0) {
+    bossWarnT -= dt;
+    if (bossWarnT <= 0) { bossWarnT = 0; summonBoss(); }
+  }
+
+  if (!boss) return;
+  const b = boss;
+  b.t += dt;
+  if (b.flash > 0) b.flash = Math.max(0, b.flash - dt);
+  /* 被弹点会自己衰减：它们只是"我在打它"的短促证据，不是伤口贴图 */
+  for (let i = b.hitMarks.length - 1; i >= 0; i--) {
+    b.hitMarks[i].t += dt;
+    if (b.hitMarks[i].t > 0.34) b.hitMarks.splice(i, 1);
+  }
+
+  if (b.phase === "down") {
+    if (b.t > 1.6) { boss = null; }
+    return;
+  }
+
+  /* ---- 迈步：世界把它在送过来，它自己再走一点 ----
+     `stepPhase` 由**走过的距离**推，不由时间推 —— 这样速度一变，
+     步频自动跟着变，脚步永远不会打滑（§6.6.3 的核心）。 */
+  const walkExtra = 0.55;
+  const dz = (SCROLL + walkExtra) * dt;
+  b.z -= dz;
+  b.stepPhase += dz / BOSS.stride;
+
+  // 每迈完一步：闷击 + 轻震 + 脚下扬尘
+  if (Math.floor(b.stepPhase) > Math.floor(b.lastStep)) {
+    b.lastStep = b.stepPhase;
+    sfx.stomp();
+    addShake(1.5);
+    const sp = project(rand(-1.8, 1.8), Math.max(0.3, b.z + 0.4));
+    for (let i = 0; i < 5; i++) {
+      parts.push({ x: sp.x + rand(-30, 30), y: sp.y + rand(-14, 14), vx: rand(-70, 70), vy: rand(-90, -20), life: rand(.3, .6), t: 0, c: "rgba(150,158,164,.92)", s: rand(2, 4) });
+    }
+  }
+
+  /* ---- 四挥：按 z 过线触发 ----
+     一次只会触发一下（si 自增），所以不会在某一帧连扣四下。 */
+  if (b.si < 4 && b.z <= BOSS.strikeZ[b.si]) {
+    bossStrike();
+    if (!boss) return;                 // 这一下把人打光了
+  }
+
+  /* ---- 打完四下：倒下 ----
+     "Boss 倒在战士面前，队伍踩过它的躯体"（§6.6.4 落幕行）。
+     所以不是原地消失，是继续随世界滚过去，然后淡出。 */
+  if (b.si >= 4 && b.phase === "walk") {
+    b.phase = "down";
+    b.t = 0;
+    bossKills++;
+    sfx.bossDown();
+    addShake(5.0);
+    addFloater("巨 型 倒 下", W / 2, SQUAD_Y - 210, "#F0B03C", 34);
+    /* 尘土必须扬在**它脚下**，不能扬在画面固定位置 ——
+       第一版写在 SQUAD_Y-260（Boss 在 z=0.9 时实际在 y≈737），
+       结果尘爆飘在它头顶上面，读成"别的地方炸了"。 */
+    const bp = project(0, Math.max(0, b.z));
+    for (let i = 0; i < 3; i++) {
+      burst(bp.x + rand(-0.5, 0.5) * PPM, bp.y - rand(0, 0.6) * PPM, "#E6D8C0", 34);
+    }
+  }
+}
+/* ---------- 绘制：巨躯（正俯视，铺满桥宽） ----------
+   正俯视看不到"高"，只能看到"占地面积"。所以 Boss 的全部说服力来自三件事：
+
+     一、**宽度**。肩宽 470 px，比战场 447 px 还宽 —— 两侧溢出桥缘，
+         从视觉上就断掉"从旁边绕过去"的念头（§6.6.2）。
+     二、**骨架和丧尸一样**。这一条是返工四次之后才承认的：
+         正俯视人形的读法只有一种 ——
+           **头压在躯干正中、比躯干更靠前（y 更大）；双肩从躯干两侧横向伸出；
+             双臂从肩端一直垂到身体两侧偏前；双脚在最下方，从轮廓里探出来。**
+         只要头的 y 小于肩的 y（也就是"头在肩后面"），整只立刻变成
+         "一口盖下来的锅 + 底下挂一颗球"，怎么调颜色都救不回来。
+     三、**动作**。抬腿 → 落地 → 桥面塌陷。脚是唯一能让"它在走"成立的东西。
+
+   分层顺序（从下往上）：
+     接地影 → 双腿双脚 → 双臂 → 躯干 → 肩背 → 肩甲 → 头 → 弹痕
+   每一层的明度都比下一层差一档，靠**明度差**分块，不靠黑描边 ——
+   亮桥面上黑描边会和路面接缝的深灰融成一片，反而糊掉。
+
+   尺寸关系（全部相对 Wd = 470）：
+     肩宽 0.80 Wd（376 px，比战场 447 略窄但占满读数区）
+     躯干 0.52 Wd；头 0.34 Wd（≈160 px，肩宽的 42%，仍在人形比例内）
+     脚踏在 y = 0.52 Wd，头顶在 y = −0.30 Wd → 总高 0.82 Wd ≈ 385 px
+   ========================================================================= */
+function drawBoss() {
+  if (!boss) return;
+  const b = boss;
+  if (b.z > VIEW_Z + 2.2 || b.z < -2.4) return;
+  const p = project(0, b.z);
+  const Wd = BOSS.bodyW;
+  const downK = b.phase === "down" ? clamp(b.t / 1.3, 0, 1) : 0;
+  const e = 1 - (1 - downK) * (1 - downK);        // easeOut：先快后慢地塌下去
+  /* 倒地时"正面"必须消失。俯视下一具趴下的躯体，你看到的是**后背**，
+     不是脸 —— 第一版只是把整个人压扁，红眼睛和獠牙还正对着镜头，
+     读成"一块铁板贴到我脸上"，怎么调缩放都救不回来。
+     所以这里做一个正面→背面的交接：faceK 从 1 掉到 0，背甲从 0 长到 1。 */
+  const faceK = 1 - e;
+
+  /* 迈步：两条腿错开半周期。共用同一个 sin 会让两只脚同时抬起，
+     那读成"跳"，不是"走"。倒地后腿不动了。 */
+  const ph = (b.stepPhase % 1 + 1) % 1;
+  const liftL = Math.sin(ph * Math.PI) * faceK;
+  const liftR = Math.sin(((ph + 0.5) % 1) * Math.PI) * faceK;
+  const drop = Math.max(0, Math.cos(ph * Math.PI * 2)) * faceK;   // 落地那一下最重
+  const alphaIn = clamp((VIEW_Z + 2.2 - b.z) / 2.2, 0, 1);
+  const downFade = b.phase === "down" ? clamp((1.6 - b.t) / 0.9, 0, 1) : 1;
+
+  ctx.save();
+  ctx.globalAlpha = alphaIn * downFade;
+  ctx.translate(p.x, p.y);
+  if (e > 0) {
+    /* 塌下去的四件事：往镜头方向倒（y+）、横向摊开（x 放大）、
+       纵向压缩、**朝一侧歪**。少了最后一条它会像一张被压平的贴图，
+       真实的重物倒下永远有一边先着地。 */
+    ctx.rotate(-0.055 * e);
+    ctx.translate(0, e * 30);
+    ctx.scale(1 + e * 0.20, 1 - e * 0.24);
+  }
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  /* ---- 接地影：塌下去时影子摊得更大（这是"它离地面更近"的唯一证据） ---- */
+  ctx.fillStyle = "rgba(24,36,44," + (0.26 + e * 0.14) + ")";
+  ctx.beginPath();
+  ctx.ellipse(6, 14 + e * 10, Wd * (.52 + e * .22), Wd * (.20 + e * .05), 0, 0, 6.283);
+  ctx.fill();
+
+  /* ================= 下半身：腿 + 脚 =================
+     **腿必须走在躯干轮廓之外**。躯干半宽 0.26 Wd，头半宽 0.17 Wd ——
+     所以腿中心线取 0.20 Wd、脚取 0.245 Wd，脚的外缘 0.33 Wd：
+     它从头的两侧探出去，是"下半身存在"的唯一证据。
+     第一版把腿放在 ±0.15 Wd（躯干里面），结果整只读成"没有下半身的铁板"。 */
+  const bootW = Wd * .165, bootH = Wd * .100;
+  for (const s of [-1, 1]) {
+    const lift = s < 0 ? liftL : liftR;
+    /* 倒地时两条腿**向后（画面上方）拖出去、并且分开**。
+       这是"趴下"和"被压扁"的分水岭：站着的人腿在身体下方，
+       趴着的人腿在身体后面 —— 只压缩 y 是压不出来的，必须改脚的位置。 */
+    const hipX = s * Wd * .165;
+    const hipY = Wd * .02 - e * Wd * .06;
+    const kneeX = s * (Wd * .215 + e * Wd * .075);
+    const kneeY = Wd * .27 - lift * 10 - e * Wd * .18;
+    const footX = s * (Wd * .245 + e * Wd * .135 + lift * Wd * .012);
+    const footY = Wd * .60 - lift * 13 - e * Wd * .34;
+    ctx.strokeStyle = "#1e262c";
+    ctx.lineWidth = Wd * .105;
+    ctx.beginPath();
+    ctx.moveTo(hipX, hipY);
+    ctx.lineTo(kneeX, kneeY);
+    ctx.lineTo(footX, footY - bootH * .30);
+    ctx.stroke();
+    // 大腿受光：一条靠上的短亮线（腿是圆柱，光在左上）
+    ctx.strokeStyle = "rgba(186,200,208,.16)";
+    ctx.lineWidth = Wd * .026;
+    ctx.beginPath();
+    ctx.moveTo(hipX - s * Wd * .018, hipY + Wd * .02);
+    ctx.lineTo(kneeX - s * Wd * .020, kneeY - Wd * .02);
+    ctx.stroke();
+    // 靴子：倒地后不再立着，而是**歪倒**（跟着大腿一起摊平）
+    ctx.save();
+    ctx.translate(footX, footY);
+    ctx.fillStyle = "rgba(20,28,34," + (0.32 - lift * 0.16) + ")";
+    ctx.beginPath();
+    ctx.ellipse(2, bootH * .58, bootW * .54 * (1 - lift * .16), bootH * .38 * (1 - lift * .16), 0, 0, 6.283);
+    ctx.fill();
+    ctx.rotate(s * (0.05 + lift * .07 + e * 0.62));
+    ctx.fillStyle = "#323b42";
+    roundRect(ctx, -bootW / 2, -bootH / 2, bootW, bootH, bootH * .34); ctx.fill();
+    ctx.strokeStyle = "#0e151a"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = "#232a30";
+    roundRect(ctx, s * bootW * .14, -bootH * .48, bootW * .38, bootH * .96, bootH * .30); ctx.fill();
+    ctx.strokeStyle = "rgba(148,162,170,.26)"; ctx.lineWidth = 2;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(-bootW * .40, i * bootH * .22);
+      ctx.lineTo(bootW * .02, i * bootH * .22);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ================= 躯干：一个**竖长**的圆角块 =================
+     宽 0.52 Wd、高 0.60 Wd —— **高 > 宽**是"人"的第一条件。
+     前几版把躯干画成横向的扁块，于是它读成"锅的底座"，头再压上去就成了锅盖。 */
+  ctx.fillStyle = "#333d45";
+  roundRect(ctx, -Wd * .26, -Wd * .26, Wd * .52, Wd * .60, Wd * .14); ctx.fill();
+  ctx.strokeStyle = "#131a20"; ctx.lineWidth = 3.5; ctx.stroke();
+  // 胸甲：一块更亮的内嵌梯形，压在躯干中段（这是"正面"的唯一证据）
+  /* 正面胸甲：倒地后整块淡出（脸都翻过去了，胸甲不可能还对着镜头）。
+     接替它的是下面的背甲：一具趴下的躯体，背上是一片整的铁板 + 两条肩带。 */
+  if (faceK > 0.02) {
+    ctx.globalAlpha = alphaIn * downFade * faceK;
+    ctx.fillStyle = "#414d56";
+    ctx.beginPath();
+    ctx.moveTo(-Wd * .17, -Wd * .18);
+    ctx.lineTo(Wd * .17, -Wd * .18);
+    ctx.lineTo(Wd * .13, Wd * .26);
+    ctx.lineTo(-Wd * .13, Wd * .26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(200,214,222,.18)"; ctx.lineWidth = 2; ctx.stroke();
+    // 胸甲上三道横缝：把大块面切成"有结构"的三段
+    ctx.strokeStyle = "rgba(12,18,22,.44)"; ctx.lineWidth = 3;
+    for (let i = 0; i < 3; i++) {
+      const yy = -Wd * .10 + i * Wd * .13;
+      ctx.beginPath();
+      ctx.moveTo(-Wd * .155, yy);
+      ctx.lineTo(Wd * .155, yy);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = alphaIn * downFade;
+  }
+
+  /* 背甲：倒地后的正面。**一整片、只有一条中缝**，和正面的三段横缝刚好相反 ——
+     这两种纹理的差别，就是玩家判断"它翻过来了没有"的全部依据。 */
+  if (e > 0.02) {
+    ctx.globalAlpha = alphaIn * downFade * e;
+    ctx.fillStyle = "#46525b";
+    roundRect(ctx, -Wd * .235, -Wd * .215, Wd * .47, Wd * .56, Wd * .12); ctx.fill();
+    ctx.strokeStyle = "rgba(200,214,222,.16)"; ctx.lineWidth = 2.5; ctx.stroke();
+    // 背甲中缝 + 两侧肩带
+    ctx.strokeStyle = "rgba(12,18,22,.50)"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, -Wd * .19); ctx.lineTo(0, Wd * .30); ctx.stroke();
+    ctx.strokeStyle = "rgba(180,196,204,.20)"; ctx.lineWidth = 3;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(s * Wd * .155, -Wd * .17);
+      ctx.lineTo(s * Wd * .115, Wd * .28);
+      ctx.stroke();
+    }
+    // 背甲上的散热格：三排小方孔，位置比正面横缝**更靠上**
+    ctx.fillStyle = "rgba(10,16,20,.42)";
+    for (let r = 0; r < 3; r++) {
+      for (let c = -2; c <= 2; c++) {
+        const gx = c * Wd * .048, gy = -Wd * .055 + r * Wd * .075;
+        roundRect(ctx, gx - Wd * .015, gy - Wd * .011, Wd * .030, Wd * .022, Wd * .006);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = alphaIn * downFade;
+  }
+
+  /* ================= 肩背：从躯干两侧**横向伸出去**的两片 =================
+     这是"宽"的来源，也是"它能把整幅桥按住"最直接的证据。
+     左右各一片梯形，**外缘比躯干低**（肩是往下垂的），不是穹顶。 */
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = "#3b4750";
+    ctx.beginPath();
+    ctx.moveTo(s * Wd * .18, -Wd * .24);           // 靠脊柱一端（高）
+    ctx.lineTo(s * Wd * .40, -Wd * .16);           // 肩峰（略低）
+    ctx.lineTo(s * Wd * .38, Wd * .06);            // 肩端下垂
+    ctx.lineTo(s * Wd * .18, Wd * .02);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#121920"; ctx.lineWidth = 3.5; ctx.stroke();
+    // 斜方肌高光：沿肩线从内到外的一道弧
+    ctx.strokeStyle = "rgba(212,226,232,.28)"; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(s * Wd * .19, -Wd * .225);
+    ctx.quadraticCurveTo(s * Wd * .30, -Wd * .215, s * Wd * .39, -Wd * .15);
+    ctx.stroke();
+    // 肩甲：一片更亮的护肩，压在肩峰上
+    ctx.fillStyle = "#5b6870";
+    ctx.beginPath();
+    ctx.moveTo(s * Wd * .21, -Wd * .22);
+    ctx.lineTo(s * Wd * .385, -Wd * .145);
+    ctx.lineTo(s * Wd * .365, -Wd * .055);
+    ctx.lineTo(s * Wd * .21, -Wd * .115);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(210,224,232,.30)"; ctx.lineWidth = 2.5; ctx.stroke();
+  }
+  // 脊柱：一条贯穿后背中线的暗沟（把左右两片肩分开）
+  ctx.strokeStyle = "rgba(10,16,20,.46)"; ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(0, -Wd * .26);
+  ctx.lineTo(0, Wd * .04);
+  ctx.stroke();
+  // 脊背铁钉
+  ctx.fillStyle = "rgba(196,210,216,.42)";
+  for (let i = -2; i <= 2; i++) {
+    const nx = i * Wd * .058, ny = -Wd * .245;
+    ctx.beginPath();
+    ctx.moveTo(nx - 5, ny);
+    ctx.lineTo(nx, ny - Wd * .055);
+    ctx.lineTo(nx + 5, ny);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* ================= 双臂：从肩端垂到身体前侧 =================
+     上臂 → 肘 → 前臂，两段粗线，**肘有明确折角**。
+     前臂末端（手）是整个轮廓最靠下的东西之一，和脚差不多齐 ——
+     这样"它伸手就能按到桥上"才成立。 */
+  const handFwd = Wd * (b.si >= 2 ? .30 : .26);
+  for (const s of [-1, 1]) {
+    const shX = s * Wd * .375, shY = -Wd * .10;
+    /* 倒地时手臂往两侧**摊平摊开**（而不是继续垂在身侧）：
+       肘外移、腕上提。人趴下时两条胳膊总是撑在身体两侧的地面上。 */
+    const elX = s * Wd * (.470 + e * .075), elY = Wd * (.02 + drop * .02) - e * Wd * .16;
+    const wrX = s * Wd * (.470 + e * .155), wrY = handFwd - e * Wd * .20;
+    ctx.strokeStyle = "#1a2228";
+    ctx.lineWidth = Wd * .140;
+    ctx.beginPath();
+    ctx.moveTo(shX, shY); ctx.lineTo(elX, elY); ctx.lineTo(wrX, wrY);
+    ctx.stroke();
+    ctx.strokeStyle = "#78838b";
+    ctx.lineWidth = Wd * .110;
+    ctx.beginPath();
+    ctx.moveTo(shX, shY); ctx.lineTo(elX, elY); ctx.lineTo(wrX, wrY);
+    ctx.stroke();
+    // 受光：靠内侧上缘的一条细亮线
+    ctx.strokeStyle = "rgba(212,226,232,.26)";
+    ctx.lineWidth = Wd * .026;
+    ctx.beginPath();
+    ctx.moveTo(shX - s * Wd * .032, shY + Wd * .02);
+    ctx.lineTo(elX - s * Wd * .032, elY - Wd * .02);
+    ctx.stroke();
+    // 手：圆角块 + 三根朝前的手指
+    ctx.fillStyle = "#4c565e";
+    roundRect(ctx, wrX - Wd * .072, wrY - Wd * .035, Wd * .144, Wd * .125, Wd * .048);
+    ctx.fill();
+    ctx.strokeStyle = "#131a20"; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.strokeStyle = "rgba(172,186,194,.40)"; ctx.lineWidth = Wd * .015;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(wrX + i * Wd * .040, wrY + Wd * .080);
+      ctx.lineTo(wrX + i * Wd * .046, wrY + Wd * .128);
+      ctx.stroke();
+    }
+    // 肩关节：一圈暗环接住手臂
+    ctx.fillStyle = "#39434a";
+    ctx.beginPath(); ctx.arc(shX, shY, Wd * .050, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = "#111820"; ctx.lineWidth = 2.5; ctx.stroke();
+  }
+
+  /* ================= 头 =================
+     **头必须比肩更靠前（y 更大）**，且压在躯干中线上 —— 这是人形的读点。
+     hy = 0.44 Wd，肩峰在 −0.16 Wd，中间 0.60 Wd 的落差就是"脖子在前"。
+     头直径 0.34 Wd ≈ 160 px，是肩宽 376 px 的 42%（人体 40–45%）。 */
+  const hs = Wd * .17;
+  const hy = Wd * .34;
+  // 脖子：一小块暗色，从躯干前沿伸到头（没有它头是"浮"的）
+  ctx.fillStyle = "#2a333a";
+  roundRect(ctx, -hs * .52, hy - hs * 1.35, hs * 1.04, hs * 1.0, hs * .30); ctx.fill();
+  ctx.strokeStyle = "#0f1519"; ctx.lineWidth = 2.5; ctx.stroke();
+  // 皮肤（整颗底色）
+  ctx.fillStyle = "#7e8a79";
+  ctx.beginPath(); ctx.ellipse(0, hy, hs, hs * 1.02, 0, 0, 6.283); ctx.fill();
+  ctx.strokeStyle = "#18201a"; ctx.lineWidth = 4; ctx.stroke();
+  // 头盔：上半圈，更冷更暗
+  ctx.fillStyle = "#39444a";
+  ctx.beginPath(); ctx.ellipse(0, hy - hs * .22, hs * .96, hs * .76, 0, Math.PI, 6.283); ctx.fill();
+  ctx.strokeStyle = "#10171c"; ctx.lineWidth = 3.5; ctx.stroke();
+  ctx.strokeStyle = "rgba(224,236,242,.34)"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(0, hy - hs * .22, hs * .80, hs * .58, 0, Math.PI * 1.06, Math.PI * 1.94); ctx.stroke();
+
+  /* ---- 脸的部分：倒地时整块淡出（faceK）----
+     眼睛和牙是"它正对着你"的读点。人趴下之后这两样都不该还在。 */
+  if (faceK > 0.02) {
+    ctx.globalAlpha = alphaIn * downFade * faceK;
+    // 面甲：一条横贯暗带（眼与嘴的分界，也是"机械感"的来源）
+    ctx.fillStyle = "rgba(14,20,24,.56)";
+    roundRect(ctx, -hs * .94, hy - hs * .18, hs * 1.88, hs * .30, hs * .12); ctx.fill();
+    // 双眼：赤红 + 高光。**Boss 全身唯一的高饱和色就在这里**
+    for (const s of [-1, 1]) {
+      ctx.fillStyle = "#C0392B";
+      ctx.beginPath(); ctx.ellipse(s * hs * .33, hy - hs * .04, hs * .155, hs * .115, s * .12, 0, 6.283); ctx.fill();
+      ctx.fillStyle = "rgba(255,206,180,.74)";
+      ctx.beginPath(); ctx.ellipse(s * hs * .33 - hs * .045, hy - hs * .085, hs * .058, hs * .044, 0, 0, 6.283); ctx.fill();
+    }
+    // 嘴：大张，四颗尖牙朝内
+    ctx.fillStyle = "#180d0a";
+    ctx.beginPath(); ctx.ellipse(0, hy + hs * .46, hs * .50, hs * .31, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#F4EDE0";
+    for (let i = -1.5; i <= 1.5; i++) {
+      const tx = i * hs * .25;
+      ctx.beginPath();
+      ctx.moveTo(tx - hs * .075, hy + hs * .30);
+      ctx.lineTo(tx, hy + hs * .52);
+      ctx.lineTo(tx + hs * .075, hy + hs * .30);
+      ctx.closePath(); ctx.fill();
+    }
+    // 头顶高光
+    ctx.fillStyle = "rgba(255,255,255,.16)";
+    ctx.beginPath(); ctx.ellipse(-hs * .40, hy - hs * .58, hs * .32, hs * .14, -.5, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = alphaIn * downFade;
+  }
+
+  /* ---- 后脑：倒地后这里才是"头" ---- 
+     一整片暗色的后脑勺 + 一道沿中线的高光，没有五官。
+     它是正面消失之后唯一还能读成"一颗头"的东西。 */
+  if (e > 0.02) {
+    ctx.globalAlpha = alphaIn * downFade * e;
+    ctx.fillStyle = "#4a564f";
+    ctx.beginPath(); ctx.ellipse(0, hy - hs * .06, hs * .96, hs * .92, 0, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = "#141b16"; ctx.lineWidth = 4; ctx.stroke();
+    // 后颈一道竖向的暗沟
+    ctx.strokeStyle = "rgba(10,16,12,.55)"; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, hy - hs * .62);
+    ctx.lineTo(0, hy + hs * .58);
+    ctx.stroke();
+    // 后脑受光：一条沿左上缘的弧
+    ctx.strokeStyle = "rgba(214,228,220,.24)"; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, hy - hs * .06, hs * .78, hs * .74, 0, Math.PI * 1.10, Math.PI * 1.88);
+    ctx.stroke();
+    // 后脑上的两片护甲（让它不至于是一颗光秃的球）
+    ctx.fillStyle = "#5a6660";
+    for (const s of [-1, 1]) {
+      roundRect(ctx, s * hs * .30, hy - hs * .52, hs * .44, hs * .58, hs * .18);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(200,216,208,.22)"; ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.globalAlpha = alphaIn * downFade;
+  }
+
+  /* ---- 被弹点：子弹打上去的小白点（§6.4.7 第 3 条）。纯表现，不参与伤害。 */
+  for (const m of b.hitMarks) {
+    const a = 1 - m.t / 0.34;
+    ctx.globalAlpha = alphaIn * a * 0.95;
+    ctx.fillStyle = "#FFF4DA";
+    ctx.beginPath(); ctx.ellipse(m.x, m.y, 4.6, 3.2, m.r, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = "rgba(255,206,140,.60)"; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(m.x, m.y, 8 * (1 - a * .5), 0, 6.283); ctx.stroke();
+  }
+  ctx.globalAlpha = alphaIn * downFade;
+
+  /* ---- 挨打一闪 ---- */
+  if (b.flash > 0) {
+    ctx.globalAlpha = alphaIn * clamp(b.flash * 1.8, 0, 0.42);
+    ctx.fillStyle = "#FFEBC8";
+    ctx.beginPath(); ctx.ellipse(0, Wd * .04, Wd * .38, Wd * .34, 0, 0, 6.283); ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/* 冲击波：一道贴地扩散的裂痕 + 一道很薄的白色气浪前沿（§6.6.1）。
+   必须画在**丧尸和战士下面、桥面上面** —— 它是地面上的东西。
+   不画这个，玩家看到"我躲开了却掉人"只会认为是 bug。
+
+   **只画前沿，不画环内**。第一版刷了一整圈半透明椭圆填满，
+   在亮桥面上直接糊成一张巨大的灰圆盘（截图里像 Boss 顶着一口锅）——
+   气浪在真实世界里也只是一条"推进的边缘"，不是一团雾。 */
+function drawBossWaves() {
+  for (const w of bossWaves) {
+    const k = w.t / w.life;
+    const p = project(0, w.z - k * 0.9);        // 顺带往前推一点，读成"向外扩"
+    const grow = 0.18 + k * 1.0;                // 0.18 → 1.18，气浪从脚下推到整幅桥
+    const a = Math.max(0, 1 - k);
+    const rx = FIELD_HALF * PPM * grow;
+    const ry = 16 + 34 * grow;
+    ctx.save();
+
+    /* 前沿：一条**只在上半边**的弧（横向铺开的那一段）。
+       俯视下冲击波是贴地的，所以它在画面上是一条扁平的弧，不是圆。 */
+    ctx.globalAlpha = a * 0.62;
+    ctx.strokeStyle = w.kind === "final" ? "rgba(255,226,176,.95)" : "rgba(246,250,248,.85)";
+    ctx.lineWidth = (w.kind === "final" ? 8 : 5) * (1 - k * .55);
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, rx, ry, 0, Math.PI * 0.06, Math.PI * 0.94);
+    ctx.stroke();
+    // 再压一层更亮的细线：让它读成"前沿"而不是"描边"
+    ctx.globalAlpha = a * 0.34;
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, rx * .93, ry * .93, 0, Math.PI * 0.10, Math.PI * 0.90);
+    ctx.stroke();
+
+    /* 贴地裂纹：**从桥的中线向两侧横贯**，不是从中心放射。
+       理由：冲击波要"横贯整幅桥宽"，放射状会读成"一个圆圈在扩散"，
+       而水平横贯才读成"整片地面被震了一次"。 */
+    ctx.globalAlpha = a * 0.62;
+    ctx.strokeStyle = "rgba(46,58,66,.78)";
+    ctx.lineWidth = 2.4;
+    const yBase = p.y + 6;
+    for (let i = 0; i < 4; i++) {
+      const off = (i - 1.5) * 7;
+      const segs = 3 + (i % 2);
+      for (let s2 = 0; s2 < segs; s2++) {
+        const x0 = -FIELD_HALF * PPM + (s2 / segs) * FIELD_HALF * PPM * 2;
+        const x1 = -FIELD_HALF * PPM + ((s2 + 1) / segs) * FIELD_HALF * PPM * 2;
+        const j = (i * 37 + s2 * 19) % 11;
+        ctx.beginPath();
+        ctx.moveTo(p.x + x0 * grow, yBase + off);
+        ctx.lineTo(p.x + lerp(x0, x1, .55) * grow, yBase + off + (j - 5));
+        ctx.lineTo(p.x + x1 * grow, yBase + off - (j - 5) * .6);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+/* 全屏红闪（第 3 下专用）。压在 UI 之下、战场之上。 */
+function drawRedFlash() {
+  if (redFlash <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = clamp(redFlash, 0, 1) * 0.30;
+  ctx.fillStyle = "#B3273A";
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+/* =========================================================================
+   P5 · 子弹：**每个战士一颗自己的子弹**，护栏反弹一次
+   -------------------------------------------------------------------------
+   §6.3.4 的三条物理规则，一条都不能省：
+
+     一、没有射程限制。所有枪的子弹飞得一样远（30 m/s 的**视觉**速度），
+         不存在"手枪 5 米、狙击 30 米"。可见性边界在画布外，不在某个米数。
+     二、第一次碰到 x = ±3.0 的护栏，横向速度取反（镜面）；第二次被吞掉。
+     三、**子弹不参与任何战斗数值**。Combat 仍然在火力线一次性结算（§6.4.4），
+         这里是纯表现层 —— 所以这里的任何数字都不该被拿去算伤害。
+
+   为什么必须"每人一颗"：人数是这个游戏的分数，也是玩家的全部投入。
+   如果只有 5 颗子弹，40 个人看起来就像 5 个人 —— 人数增长带来的规模感，
+   一半靠队形，另一半就靠这个（§6.3.4）。
+   ========================================================================= */
+const BULLETS = [];
+const BULLET_SPEED = 30;               // m/s，视觉速度，不是真实弹速
+/* 扩散角（度）。它不是"准头"，是几何：**反弹率完全由它决定**。
+   狙击 ±0.2° 几乎从不撞护栏，霰弹 ±16° 最外侧两颗每发都弹回来 ——
+   于是"唯一需要覆盖面积的枪"恰好是"唯一会大量反弹的枪"，这是设计要的自洽。
+
+   ⚠ 文档 §6.3.4 写的是 ±12°，那是按"边缘到护栏 1.32 m"算的。
+   按现在的队形（FORM_W 1.6 → 半宽 0.8，护栏 3.0），边缘到护栏是 **2.2 m**，
+   12° 的第一次撞墙落在 (3.0−0.8)/tan12° = **10.35 m**，而可见纵深只有 9.68 m ——
+   跳弹永远发生在屏幕外，P5.2 整条规则等于不存在。
+   16° 把它拉回 (2.2)/tan16° = **7.7 m**：既在屏内，又早于霰弹对尸潮的
+   接触点 9.2 m，正是文档要求的"反弹发生在接触点之前，玩家看得见"。 */
+const BULLET_SPREAD = { pistol: 3.0, rifle: 1.5, shotgun: 16.0, sniper: 0.2 };
+const BULLET_PELLETS = { pistol: 1, rifle: 1, shotgun: 5, sniper: 1 };
+/* 拖尾时长（秒）—— 三把枪的齐射形态差异，靠"扩散角 + 拖尾 + 颜色"三样编码：
+     步枪  0.014 s 密集短线，几乎笔直平行，像一排缝纫机在扎
+     霰弹  0.010 s 短促橙点，扇形糊过去，两侧的会拐弯
+     狙击  0.034 s ≈ 1 米的长拖尾，稀疏、安静，每响一次倒一个
+     手枪  0.018 s 稀疏的暖白短线（它是地板，不该有辨识度） */
+const BULLET_TRAIL = { pistol: 0.018, rifle: 0.014, shotgun: 0.010, sniper: 0.034 };
+/* 颜色走"饱和芯"而不是"白热芯"：P4 的教训是米白在 #C9CFD2 的亮灰路面上
+   直接消失。这四种色都在中高明度上带明确色相，浅底上才立得住。 */
+const BULLET_TINT = {
+  pistol:  "#FFC978",
+  rifle:   "#FFD98A",
+  shotgun: "#FF9F35",
+  sniper:  "#A9D8FF"
+};
+/* 屏外停止绘制（P5.5）。**这不是射程**：子弹没有任何伤害，
+   这个常量只回答"看不见了还要不要算下一帧"。名字里刻意不出现 range ——
+   一旦叫成 maxRange，下一个人就会以为它是可以按枪种配的数值。 */
+const VIS_CULL_Z = VIEW_Z + 1.2;
+const RAIL_X = BRIDGE_HALF;            // ±3.0，桥净宽半幅
+
+/* 枪口相对战士"脚下投影点"的偏移。
+   **必须和 drawWeapon 的几何一致**：枪画在 (px + 12K, py − 15K)，
+   枪管从那里再往上伸 len × gunScale × K —— 26 px 的步枪就是 py − 41。
+   P4 时把这里写成 py − 16（以为 16 就是"枪口"），结果火花和出膛点
+   全落在枪身里侧，被枪挡得干干净净，屏幕上根本看不见火光。 */
+const MUZZLE_DX = 12, MUZZLE_DY = -15;
+const GUN_LEN = { pistol: 20, rifle: 26, shotgun: 26, sniper: 40 };
+function muzzleAt(px, py, K, gun, gunScale) {
+  const L = (GUN_LEN[gun] || 26) * (gunScale == null ? 1 : gunScale) * K;
+  return { x: px + MUZZLE_DX * K, y: py + MUZZLE_DY * K - L, L };
+}
 let fireAcc = 0, muzzleT = 0, MUZZLE_LIFE = 0.055;
+
+function updateBullets(dt) {
+  for (let i = BULLETS.length - 1; i >= 0; i--) {
+    const b = BULLETS[i];
+    b.x += b.vx * dt;
+    b.z += b.vz * dt;
+
+    if (b.x <= -RAIL_X || b.x >= RAIL_X) {
+      if (b.bounces) { BULLETS.splice(i, 1); continue; }   // 第二次：被护栏吞掉，**不配音**
+      b.x = clamp(b.x, -RAIL_X, RAIL_X);
+      b.vx = -b.vx;                                        // 镜面：横向取反，纵向不变
+      b.bounces = 1;
+      /* 反弹点必须有火花，否则子弹"拐弯"会被当成 bug（§6.3.4 视觉三件事之一） */
+      const rp = project(b.x, b.z);
+      burst(rp.x, rp.y, "#FFD9A0", 3);
+      sfx.ricochet();
+    }
+    if (b.z > VIS_CULL_Z) { BULLETS.splice(i, 1); continue; }
+
+    /* ---- 打到 Boss：留一个白点，然后消失 ----
+       §6.4.7 第 3 条要求"子弹打到 Boss 要有着弹点"。这里只在**已进入屏内**的
+       Boss 身上记标记；纯表现，不参与任何伤害（伤害在 z 过线那一下结完）。
+       标记坐标是**相对 Boss 中心**的像素偏移，所以它会跟着 Boss 一起走。 */
+    if (boss && boss.phase !== "down" && b.z > boss.z - 0.35 && b.z < boss.z + 0.35) {
+      const bx = b.x * PPM, by = (boss.z - b.z) * PPM;   // 世界偏移 → 相对像素
+      if (Math.abs(bx) < BOSS.bodyW * .42 && by > -BOSS.bodyW * .34 && by < BOSS.bodyW * .52) {
+        boss.hitMarks.push({ x: bx, y: by, r: rand(-.6, .6), t: 0 });
+        if (boss.hitMarks.length > 26) boss.hitMarks.shift();
+        boss.flash = Math.max(boss.flash, 0.10);
+        burst(project(b.x, b.z).x, project(b.x, b.z).y, "#FFE7BC", 2);
+        BULLETS.splice(i, 1);
+      }
+    }
+  }
+  /* 兜底：极端情况下（切页回来、dt 抖动）不让池子无限长 */
+  if (BULLETS.length > 900) BULLETS.splice(0, BULLETS.length - 900);
+}
+
+/* 一次齐射：**画面上每一个战士各自出膛**，不是"整体弹幕层糊过去" */
+function fireVolley() {
+  const mem = squadMembers();
+  if (!mem.length) return;
+  const K = soldierScale(mem.length);
+  const gun = Squad.weapon;
+  const spread = (BULLET_SPREAD[gun] || 3) * Math.PI / 180;
+  const pellets = BULLET_PELLETS[gun] || 1;
+
+  for (const m of mem) {
+    /* 世界坐标直接算，**不要用 project() 反投影** —— project 里带了震屏偏移，
+       反投影会把"这一帧抖了多少像素"烘进子弹的出生位置。 */
+    const L = (GUN_LEN[gun] || 26) * (m.gun == null ? 1 : m.gun) * K;
+    const mx = memberX(m.dx) + (MUZZLE_DX * K) / PPM;
+    const mz = m.dz + (15 * K + L) / PPM;        // 枪管末端在世界里的前方距离
+    for (let p = 0; p < pellets; p++) {
+      /* 霰弹的 5 颗在 ±spread 里**均匀铺开**（-16/-8/0/8/16），
+         单发枪给一点散布，纯直线会读成"激光"而不是"子弹" */
+      const t = pellets > 1 ? (p / (pellets - 1)) * 2 - 1 : rand(-1, 1) * 0.35;
+      const a = t * spread;
+      BULLETS.push({
+        x: mx, z: mz,
+        vx: Math.sin(a) * BULLET_SPEED,
+        vz: Math.cos(a) * BULLET_SPEED,
+        gun, bounces: 0
+      });
+    }
+  }
+  muzzleT = MUZZLE_LIFE;
+  sfx.shot(gun);
+  /* 震屏只给"有重量"的两把枪。步枪每 1/3 秒抖一下会把整个画面抖成糊的，
+     而狙击的一响 + 霰弹的一喷，正需要那一下顿挫（§P5.7）。 */
+  if (gun === "sniper") addShake(2.8);
+  else if (gun === "shotgun") addShake(1.5);
+}
+
 function updateFire(dt) {
   if (muzzleT > 0) muzzleT = Math.max(0, muzzleT - dt);
-  for (let i = tracers.length - 1; i >= 0; i--) {
-    tracers[i].t += dt;
-    if (tracers[i].t >= tracers[i].life) tracers.splice(i, 1);
-  }
+  updateBullets(dt);
   if (phase !== "PLAY" || Squad.count <= 0) return;
 
   const spec = WEAPONS[Squad.weapon] || WEAPONS.pistol;
   fireAcc += dt * spec.rate;
   if (fireAcc < 1) return;
   fireAcc = 0;
+  fireVolley();
+}
 
-  const mem = squadMembers();
-  if (!mem.length) return;
-  const K = soldierScale(mem.length);
-  const zl = COMBAT.hitLine(kFor(curFormation));
-  // 霰弹枪一次扣扳机飞出 5 颗，画面上要给 9 道散布，否则读成"步枪"
-  const n = spec.pellets > 1 ? 9 : 5;
-  for (let i = 0; i < n; i++) {
-    const m = mem[(Math.random() * Math.min(mem.length, 6)) | 0];   // 只让前排开火
-    const a = project(memberX(m.dx), m.dz);
-    /* 枪口位置必须贴着枪身。第一版写的是 py-44，比头盔还高一截，
-       弹迹从头顶上方凭空生出，和枪完全脱节；drawWeapon 画在 py-15，
-       所以这里取 py-16、比准星再往外 16px。 */
-    const sx = a.x + MUZZLE_DX * K, sy = a.y + MUZZLE_DY * K;
-    const b = project(rand(-1.6, 1.6), zl + rand(-0.3, 0.3));
-    /* 弹迹只在 x/y 两端记枪口和火力线，中间由 drawFire 按 t/life 插值 ——
-       之所以不做成"固定长度的一段线段"：k=4 时火力线在 6 米外，一条静止的
-       52px 短线不管是锚在枪口（埋在人堆里）还是锚在目标（路中间飘着几根
-       短棍，读成玻璃划痕）都不成立。会飞的弹头没有这个歧义：
-       头部在动，尾巴跟着长，眼睛追的是"运动"本身。 */
-    const dx = b.x - sx, dy = b.y - sy;
-    tracers.push({ sx, sy, bx: b.x, by: b.y, len: Math.hypot(dx, dy) || 1, t: 0, life: rand(.09, .14) });
-  }
-  muzzleT = MUZZLE_LIFE;
-}
-/* 一颗子弹在 t 时刻的"头 / 尾"两点。尾巴长度随飞行距离增长：
-   刚出膛时几乎没有尾迹（不糊住战士），飞到一半就拉满 46 px。 */
-const TRACER_TAIL = 46;
-function tracerHead(tr) {
-  const u = Math.min(1, tr.t / tr.life);
-  return { u, x: tr.sx + (tr.bx - tr.sx) * u, y: tr.sy + (tr.by - tr.sy) * u };
-}
-function drawFire() {
-  if (!tracers.length && muzzleT <= 0) return;
+function drawBullets() {
+  if (!BULLETS.length) return;
   ctx.save();
   ctx.lineCap = "round";
-  if (tracers.length) {
-    /* 亮灰路面上的对比度是这里的全部难点：米白 @alpha .10 完全看不见，
-       第一版就是这么"消失"的。所以走两层 —— 外层暖橙粗光晕负责在浅底上
-       立住轮廓，内层白热细芯负责"这是子弹"。 */
-    for (const pass of [
-      { c: "#FFB24A", w: 5.6, a: 0.34 },
-      { c: "#FFF6DE", w: 2.4, a: 0.98 }
-    ]) {
-      ctx.globalAlpha = pass.a;
-      ctx.strokeStyle = pass.c;
-      ctx.lineWidth = pass.w;
+  /* 同一把枪的子弹颜色相同 → 一把枪只要 2 次 stroke（原弹一组、跳弹一组）。
+     24 人齐射 + 霰弹 120 颗，全屏也只有 8 次绘制调用。 */
+  for (const gun of GUN_ORDER.concat(["pistol"])) {
+    const tint = BULLET_TINT[gun];
+    const tr = BULLET_TRAIL[gun] || 0.014;
+    for (let pass = 0; pass < 2; pass++) {
+      let any = false;
       ctx.beginPath();
-      for (const tr of tracers) {
-        const h = tracerHead(tr);
-        const L = Math.min(TRACER_TAIL, tr.len * h.u);
-        ctx.moveTo(h.x - (tr.bx - tr.sx) / tr.len * L, h.y - (tr.by - tr.sy) / tr.len * L);
-        ctx.lineTo(h.x, h.y);
+      /* 这里不用 project()：它是热路径，一帧 120 颗子弹 × 2 个端点 =
+         240 个临时对象，GC 压力白白多出来。投影就是一次线性映射。 */
+      for (const b of BULLETS) {
+        if (b.gun !== gun || b.bounces !== pass) continue;
+        const ax = W / 2 + (b.x - b.vx * tr) * PPM + shakeX;
+        const ay = SQUAD_Y - (b.z - b.vz * tr) * PPM + shakeY;
+        const cx2 = W / 2 + b.x * PPM + shakeX;
+        const cy2 = SQUAD_Y - b.z * PPM + shakeY;
+        ctx.moveTo(ax, ay); ctx.lineTo(cx2, cy2);
+        any = true;
       }
+      if (!any) continue;
+      /* 跳弹**变暗变细**：亮度降 40%、线宽减半（§6.3.4 视觉三件事之二）。
+         玩家一眼分得清哪颗是原弹，才会相信"它只弹一次"。 */
+      ctx.globalAlpha = pass ? 0.40 : 0.95;
+      ctx.lineWidth = pass ? 1.1 : 2.3;
+      ctx.strokeStyle = tint;
       ctx.stroke();
     }
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "#FFFFFF";
-    for (const tr of tracers) {
-      const h = tracerHead(tr);
-      ctx.fillRect(h.x - 1.7, h.y - 1.7, 3.4, 3.4);
-    }
   }
-  if (muzzleT > 0) {
-    const mem = squadMembers();
-    const K = soldierScale(mem.length);
-    const a = muzzleT / MUZZLE_LIFE;
-    ctx.globalAlpha = a * 0.8;
-    ctx.fillStyle = PAL.muzzle;
-    for (let i = 0; i < Math.min(6, mem.length); i++) {
-      const p = project(memberX(mem[i].dx), mem[i].dz);
-      ctx.beginPath();
-      ctx.ellipse(p.x + MUZZLE_DX * K, p.y + MUZZLE_DY * K + 1, 2.4, 5.2, 0, 0, 6.283);
-      ctx.fill();
-    }
+  ctx.restore();
+}
+
+/* 枪口火光：**每个战士一个小三角形**，不用光晕（§10.5）。
+   40 个三角形在满屏时会连成一条明亮的锯齿线 —— 那条线就是"我的队伍在齐射"
+   的全部视觉证据，比任何粒子都有效。 */
+function drawMuzzle() {
+  if (muzzleT <= 0) return;
+  const mem = squadMembers();          // 一次就够，别为两层效果各算一遍
+  if (!mem.length) return;
+  const K = soldierScale(mem.length);
+  const a = muzzleT / MUZZLE_LIFE;
+  const pts = [];
+  for (const m of mem) {
+    const p = project(memberX(m.dx), m.dz);
+    pts.push(muzzleAt(p.x, p.y, K, Squad.weapon, m.gun));
+  }
+  ctx.save();
+  /* 火光外一层极淡的暖雾：三角形负责"清楚"，雾负责"亮" */
+  ctx.globalAlpha = a * 0.20;
+  ctx.fillStyle = "#FFB24A";
+  for (const mu of pts) {
+    ctx.beginPath();
+    ctx.arc(mu.x, mu.y + 1, 7.5 * K, 0, 6.283);
+    ctx.fill();
+  }
+  ctx.globalAlpha = a * 0.92;
+  ctx.fillStyle = PAL.muzzle;
+  for (const mu of pts) {
+    ctx.beginPath();
+    ctx.moveTo(mu.x - 2.8, mu.y + 2.4);
+    ctx.lineTo(mu.x + 0.3, mu.y - 9.5);     // 尖端朝 z+（屏幕上方）
+    ctx.lineTo(mu.x + 3.2, mu.y + 2.4);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -2764,13 +3906,16 @@ function update(dt) {
   // 启动页也慢慢滚一点，让标题下面那座桥是活的
   scrollM += (phase === "BOOT" ? 2.6 : SCROLL) * dt;
   updateAsh(dt);
+  decayShake(dt);
 
   if (phase === "PLAY" || phase === "OVER") {
     if (phase === "PLAY") updateGates(dt);
     updateZombies(dt);
+    updateBoss(dt);
     updateFx(dt);
     updateCasualties(dt);
     updateFire(dt);
+    updateRedFlash(dt);
   }
   /* 死亡后留 0.55 秒再弹结算：那半秒里最后几只扑上来、倒数几个人倒下，
      直接盖结算面板会把"我是怎么死的"这一帧吃掉 —— 而那正是玩家要看的。 */
@@ -2787,14 +3932,26 @@ function render() {
        门从画面顶端滚下来的那两秒会把正在辨认的尸潮整片盖掉。
        这里以门的 z 为界，远的先画、近的后画，门永远夹在中间。 */
     const gz = pair ? pair.z : -99;
+    /* 冲击波是**地面上的东西**：画在桥面之后、所有立体物之前。
+       如果和丧尸一起交错画，它会盖在怪身上，读成"半空里的一道圈"。 */
+    drawBossWaves();
     drawZombies(gz, 99);
     drawGates();
     drawZombies(-99, gz);
-    drawFire();
+    /* Boss 只有一个、又铺满整幅桥面，所以不做 z 交错，直接压在所有怪和门之上：
+       它站在地面前方，任何一只丧尸都不该从它身上"穿"出来。
+       门在 Boss 期间已经清场（updateGates 会拦），重叠窗口只有淡出的那 0.3 秒。 */
+    drawBoss();
+    /* 子弹画在战士**下面**：从枪口往远处飞，一出膛就该被前面的人挡住。
+       枪口火光反过来必须画在战士**上面** —— 它长在枪管末端，画在下面
+       会被枪身和头盔整个盖掉（P4 的火光就是这么"消失"的）。 */
+    drawBullets();
     drawSquad(simT);
+    drawMuzzle();
     drawCasualties();
     drawAsh();
     drawFx();
+    drawRedFlash();
   } else {
     drawSquad(simT);
     drawAsh();
@@ -2808,6 +3965,7 @@ let dragging = false, dragStartClientX = 0, dragStartX = 0;
 
 function pointerDown(e) {
   if (e.target.closest("button")) return;
+  sfx.unlock();                      // 移动端：必须由手势解锁 AudioContext
   dragging = true;
   dragStartClientX = e.clientX;
   dragStartX = Squad.targetX;
@@ -3012,6 +4170,23 @@ function updateHud() {
   }
   // 操作提示只在开场 8 秒内有效：队伍后排在 y≈919，提示正好压在脚上
   $("hudHint").style.opacity = simT > 8 ? "0" : "1";
+
+  /* ---- P6：Boss 警示条与血条 ----
+     预告期（5 秒）只亮警示，血条不出现 —— 血条一出现就等于"它已经到了"。
+     Boss 倒下（phase=down）后血条立刻清空，但警示保持 1 秒的"已击倒"。 */
+  const warnOn = bossWarnT > 0;
+  $("bossWarn").classList.toggle("on", warnOn);
+  const barOn = !!boss;
+  $("bossBar").classList.toggle("on", barOn);
+  if (boss) {
+    $("bossNo").textContent = boss.no;
+    const hpPct = Math.max(0, Math.round((boss.hp - boss.si / 4 * boss.hp) / Math.max(1, boss.hp) * 100));
+    /* 血条的"掉"不按真实血量走，按**挥了几次**走：四次挥击是这道题的刻度，
+       玩家要看的是"还剩几下"，不是"还剩 37% 生命"。两者都显示，刻度是四格。 */
+    const left = Math.max(0, 4 - boss.si);
+    $("bossFill").style.width = (left / 4 * 100) + "%";
+    $("bossPct").textContent = boss.phase === "down" ? "已击倒" : left + " / 4 下";
+  }
 }
 setInterval(updateHud, 80);
 
@@ -3032,23 +4207,35 @@ function resetRun() {
   Squad.flash = 0; Squad.pulse = 0; Squad.hurtAcc = 0;
   Squad.weapon = "pistol"; Squad.level = 1; Squad.k = 1.5;
   zombies.length = 0; casualties.length = 0; waveHit.clear();
-  parts.length = 0; floaters.length = 0; tracers.length = 0;
+  parts.length = 0; floaters.length = 0; BULLETS.length = 0;
   pair = null; pairCount = 0; pairMaxAlive = 0;
   lastWeaponGate = null; weaponShown = 0;
   waveCount = 0; wavePower = 0; curFormation = "horde";
   lastFormation = null; formStreak = 0;
   waveTimer = FIRST_WAVE_DELAY;
   fireAcc = 0; muzzleT = 0; overT = 0;
+  shake = shakeX = shakeY = 0;
   peakCount = 5;
   dragging = false;
+  /* ---- P6 也要一列清到底 ----
+     Boss 忘了重置的后果特别难看：第二局一开局巨躯就站在屏幕顶上，
+     而且它的血量是上一局的（按上一局的人数算过），玩家会以为"这游戏坏了"。 */
+  boss = null; bossNo = 0; bossKills = 0;
+  bossWarnT = 0; bossWarnedFor = -1;
+  bossWaves.length = 0;
+  redFlash = 0;
+  deathCause = ""; deathPct = 0; deathRatio = 1;
 }
 
 function startGame() {
   resetRun();
   phase = "PLAY";
+  sfx.unlock();                      // 点"开始"是最早的可靠手势，在这里解锁声音
   $("boot").classList.add("hidden");
   $("over").classList.remove("on");
   $("hud").classList.add("on");
+  $("bossBar").classList.remove("on");
+  $("bossWarn").classList.remove("on");
   updateHudWeapon();
   spawnPair();                       // 第一对门立刻在屏外排好队
 }
@@ -3058,6 +4245,27 @@ function gameOver() {
   phase = "OVER";
   Squad.count = 0;
   overT = 0.55;                      // 留半秒给最后一扑，再盖面板
+  /* 尸检报告的三个数必须在**死的那一帧**取样：
+     死亡之后 curFormation 还会被下一波改、k 还会被刷新，
+     等 0.55 秒再算的话，报告里写的就不是"杀死你的那个配置"了。 */
+  if (!deathCause) deathCause = "wave";
+  deathRatio = Squad.k / Math.max(0.1, COMBAT.K(simT));
+  sfx.over();                        // 骤降 + 长尾，之后只剩脚步声
+}
+
+/* 评级只看时间，不看别的（§6.7）。因为在这个游戏里，时间就是唯一的、也是最终的答案。 */
+function rankOf(t) {
+  if (t < 90) return "D";
+  if (t < 180) return "C";
+  if (t < 270) return "B";
+  if (t < 360) return "A";
+  return "S";
+}
+
+/* 总分 = 距离 × 100 + 击杀 Boss × 10000（§6.7）。
+   人数峰值**不作分**：它和距离高度相关，算两遍会让玩家以为有两个优化方向。 */
+function scoreOf() {
+  return Math.round(scrollM) * 100 + bossKills * 10000;
 }
 
 function showOver() {
@@ -3067,8 +4275,43 @@ function showOver() {
   $("overTier").textContent = "V" + Squad.peakTier + " · " + tierName(Squad.peakTier);
   $("overGun").textContent = (WEAPONS[Squad.weapon] || WEAPONS.pistol).name +
     (Squad.weapon === "pistol" ? "" : " Lv" + Squad.level);
+  $("overRank").textContent = rankOf(simT);
+
+  /* ---- 第一行：我为什么死 ----
+     §6.7 的核心：玩家死了必须立刻知道下一次该改什么。
+     Boss 死要写清"第几个 + 最后一下吃掉多少"，被普通波磨死就写清是哪一波。
+
+     ⚠ **"吃掉 120%" 是个病句**：没人能被吃掉 120%，那只可能是"这一下要
+     120% 的兵力才扛得住"。take 一旦 ≥ 人数，比例就会越过 100%，
+     所以两种情况必须分两种说法，否则面板上会出现一个不可能的数字。 */
+  const over = deathPct > 1.02;                 // 打穿了（要的比有的多）
+  const pctText = Math.round(deathPct * 100) + "%";
+  const tail = deathPct <= 0 ? ""
+    : over ? " · 那一下要 " + pctText + " 的兵力" : " · 吃掉 " + pctText;
+  const cause = deathCause === "boss"
+    ? "死于第 " + bossNo + " 个 Boss" + tail
+    : "死于第 " + waveCount + " 波遭遇" + tail;
+  $("overCause").textContent = cause;
+
+  /* ---- k / K 缺口：全作唯一一个"技术指标" ----
+     < 1 → 火力没跟上丧尸变硬的速度 → 该多选武器门
+     > 1.5 → 火力超前 → 死是因为人不够 → 该多选加法门
+     这两个读法必须写在面板上，否则玩家看到 0.8 只会觉得"这是个数字"。 */
+  const ratio = deathRatio;
+  const el = $("overRatio");
+  el.textContent = ratio.toFixed(2);
+  el.className = ratio < 1 ? "neg" : ratio > 1.5 ? "pos" : "";
+  $("overBoss").textContent = bossKills + " 个";
+  $("overScore").textContent = abbr(scoreOf());
+
+  $("overNote").innerHTML = ratio < 1
+    ? "k / K = " + ratio.toFixed(2) + "：火力跟不上了。<br>下一次，武器门优先级高于人数门。"
+    : "k / K = " + ratio.toFixed(2) + "：火力够用。<br>下一次，缺的是人 —— 多选加法门。";
+
   $("over").classList.add("on");
   $("hud").classList.remove("on");
+  $("bossBar").classList.remove("on");
+  $("bossWarn").classList.remove("on");
 }
 $("startBtn").addEventListener("click", startGame);
 $("againBtn").addEventListener("click", startGame);
@@ -3109,10 +4352,30 @@ window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
   resetRun, startGame, gameOver,
   get wavePower() { return wavePower; },
   get casualties() { return casualties; },
-  get tracers() { return tracers; },
   get peakCount() { return peakCount; },
   get weaponShown() { return weaponShown; },
-  get overT() { return overT; } };
+  get overT() { return overT; },
+  /* ---- P5 自检出口 ---- */
+  BULLET_SPEED, BULLET_SPREAD, BULLET_PELLETS, BULLET_TRAIL, VIS_CULL_Z, RAIL_X,
+  fireVolley, updateBullets, addShake,
+  get bullets() { return BULLETS; },
+  get shake() { return shake; },
+  get muzzleT() { return muzzleT; },
+  get sfxReady() { return sfx.ready; },
+  /* ---- P6 自检出口 ----
+     Boss 的账必须能从外面完整核对：现身那一刻锁死的 hp / total / 四下分配，
+     以及"位置不参与"这条 —— 自检把 Squad.x 拉到最左和最右各打一次，
+     比对扣的人数是否完全相同。 */
+  BOSS, Diff, summonBoss, updateBoss, bossStrike, rankOf, scoreOf,
+  get boss() { return boss; },
+  get bossNo() { return bossNo; },
+  get bossKills() { return bossKills; },
+  get bossWarnT() { return bossWarnT; },
+  get bossWaves() { return bossWaves; },
+  get deathCause() { return deathCause; },
+  get deathPct() { return deathPct; },
+  get deathRatio() { return deathRatio; },
+  get redFlash() { return redFlash; } };
 
 </script>
 </body>

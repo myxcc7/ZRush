@@ -35,6 +35,9 @@
     display:flex;
     align-items:center;
     justify-content:center;
+    /* P7.4：安全区内缩（由 resize() 写入实测 px）。
+         用 box-sizing:border-box 让 padding 内缩而不是把画面撑出屏幕。 */
+    box-sizing:border-box;
   }
   #frame{
     position:relative;
@@ -86,10 +89,19 @@
     color:var(--bone);
   }
   .boot-mid{
+    /* align-self:flex-end 让这块贴着画布右缘 —— 最长那行就顶到边了。
+       改成 stretch + max-width：卡片自己撑到内容宽度，但永远留出右侧余量，
+       不然中文长句会在任何字号下都刚好差一两个字。 */
     align-self:flex-end;
+    max-width:86%;
+    /* **margin-right 才是真正让卡片离开右缘的东西**。
+       align-self:flex-end + max-width 只是把卡片从"撑满"压成"按内容收缩"，
+       它依然贴着画布右边 —— 而 .ui 是 overflow:hidden 的，
+       超出的那一两个字会被直接切掉。这两行缺任何一条都会复发。 */
+    margin-right:calc(var(--u,1px)*10);
     text-align:right;
     font-family:var(--mono);
-    font-size:calc(var(--u,1px)*12.5);
+    font-size:calc(var(--u,1px)*12);
     line-height:1.9;
     color:var(--muted);
     /* 桥面改成亮色后，原来直接压在路面上的浅色文字几乎看不见，
@@ -97,7 +109,8 @@
     background:rgba(22,32,42,.6);
     border:1px solid rgba(242,233,216,.12);
     border-radius:calc(var(--u,1px)*9);
-    padding:calc(var(--u,1px)*9) calc(var(--u,1px)*12);
+    padding:calc(var(--u,1px)*9) calc(var(--u,1px)*11);
+    box-sizing:border-box;
   }
   .boot-mid b{color:var(--bone);font-weight:500}
   .boot-bottom{display:flex;flex-direction:column;gap:calc(var(--u,1px)*20)}
@@ -279,6 +292,97 @@
   }
   #over .over-rows b.neg{color:#ED93B1}
   #over .over-rows b.pos{color:#5DCAA5}
+
+  /* ---------- P7.3 · 暂停 / 纪录 ----------
+     暂停层必须**盖住整个画布**并吃掉指针事件：
+     否则暂停时手指还能拖动队伍，玩家会以为暂停没生效。
+     底色用 0.72 而不是 1.0 —— 要让他看见"世界还在那儿，只是不动了"。 */
+  #pauseBtn{
+    position:absolute;right:calc(var(--u,1px)*14);bottom:calc(var(--u,1px)*14);
+    width:calc(var(--u,1px)*36);height:calc(var(--u,1px)*36);
+    padding:0;appearance:none;cursor:pointer;
+    border:1px solid rgba(242,233,216,.18);border-radius:50%;
+    background:rgba(14,20,26,.34);
+    display:flex;align-items:center;justify-content:center;gap:calc(var(--u,1px)*3);
+    opacity:0;pointer-events:none;transition:opacity .3s ease;
+    backdrop-filter:blur(2px);
+  }
+  #pauseBtn.on{opacity:1;pointer-events:auto}
+  #pauseBtn span{
+    display:block;width:calc(var(--u,1px)*3);height:calc(var(--u,1px)*13);
+    background:rgba(242,233,216,.72);border-radius:1px;
+  }
+  #pauseBtn:active{transform:scale(.94)}
+
+  #pauseLayer{
+    position:absolute;inset:0;z-index:30;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(10,15,21,.72);
+    opacity:0;pointer-events:none;transition:opacity .25s ease;
+  }
+  #pauseLayer.on{opacity:1;pointer-events:auto}
+  .pause-card{
+    width:76%;padding:calc(var(--u,1px)*26) calc(var(--u,1px)*22) calc(var(--u,1px)*20);
+    background:rgba(20,30,40,.94);
+    border:1px solid rgba(242,233,216,.16);
+    border-radius:calc(var(--u,1px)*8);
+  }
+  .pause-cap{
+    text-align:center;font-size:calc(var(--u,1px)*15);
+    letter-spacing:calc(var(--u,1px)*6);color:var(--bone);margin-bottom:calc(var(--u,1px)*20);
+  }
+  .pause-rows{
+    font-family:var(--mono);font-size:calc(var(--u,1px)*11);
+    color:var(--muted);border-top:1px solid var(--hairline);
+  }
+  .pause-rows div{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:calc(var(--u,1px)*9) 0;border-bottom:1px solid rgba(242,233,216,.08);
+  }
+  .pause-rows b{font-weight:500;color:var(--bone);font-size:calc(var(--u,1px)*13)}
+  #pauseResume{
+    margin-top:calc(var(--u,1px)*22);width:100%;appearance:none;
+    border:1px solid rgba(242,233,216,.5);background:var(--bone);color:#22303c;
+    font-size:calc(var(--u,1px)*15);font-weight:600;letter-spacing:calc(var(--u,1px)*3);
+    padding:calc(var(--u,1px)*13) 0;border-radius:calc(var(--u,1px)*5);
+    cursor:pointer;font-family:inherit;
+  }
+  #pauseQuit{
+    margin-top:calc(var(--u,1px)*10);width:100%;appearance:none;
+    border:1px solid rgba(242,233,216,.20);background:transparent;
+    color:rgba(242,233,216,.52);
+    font-size:calc(var(--u,1px)*12);letter-spacing:calc(var(--u,1px)*2);
+    padding:calc(var(--u,1px)*10) 0;border-radius:calc(var(--u,1px)*5);
+    cursor:pointer;font-family:inherit;
+  }
+
+  /* 主菜单的纪录行：只在真的打过一局之后才显示。
+     没打过时这里留空 —— 一行 "最好成绩 —" 对第一次来的人只是噪音。 */
+  .boot-rec{
+    margin-top:calc(var(--u,1px)*14);
+    font-family:var(--mono);font-size:calc(var(--u,1px)*10.5);
+    letter-spacing:calc(var(--u,1px)*1.4);color:rgba(242,233,216,.58);
+    line-height:1.9;
+  }
+  .boot-rec b{color:#F0B03C;font-weight:500}
+
+  /* 面板上的"新纪录"印章：只在破纪录那一局出现，斜压在手写体一样的评级旁边 */
+  #over .over-new{
+    position:absolute;top:calc(var(--u,1px)*58);right:calc(var(--u,1px)*100);
+    font-size:calc(var(--u,1px)*11);letter-spacing:calc(var(--u,1px)*2.4);
+    color:#F0B03C;border:1px solid rgba(240,176,60,.5);
+    padding:calc(var(--u,1px)*4) calc(var(--u,1px)*8);
+    border-radius:calc(var(--u,1px)*3);
+    transform:rotate(-4deg);
+    opacity:0;transition:opacity .3s ease .1s;
+  }
+  #over .over-new.on{opacity:.92}
+  /* 最后一行"最好成绩"用虚线分隔：它是跨局的数，不属于这一局 */
+  #over .over-rows .rec{
+    border-top:1px dashed rgba(242,233,216,.20);
+    margin-top:calc(var(--u,1px)*2);
+  }
+  #over .over-rows .rec span,#over .over-rows .rec b{color:rgba(242,233,216,.62)}
   .hud-right{
     text-align:right;font-family:var(--mono);font-size:calc(var(--u,1px)*10.5);line-height:1.65;color:var(--muted);
     background:rgba(22,32,42,.48);border:1px solid rgba(242,233,216,.10);
@@ -452,7 +556,7 @@
           </div>
           <div class="bb-track"><i id="bossFill"></i></div>
         </div>
-        <div class="hud-bottom" id="hudHint">v0.23 · 时间轴与 Boss　左右拖动选门 · D 调试</div>
+        <div class="hud-bottom" id="hudHint">v0.24 · 可交付　左右拖动选门 · P 暂停 · D 调试</div>
 
       </div>
 
@@ -461,7 +565,7 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · v0.23 时间轴与 Boss</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · v0.24</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
@@ -515,7 +619,7 @@
         <div>
           <div class="boot-top">
             <div class="tag">末 日 高 架</div>
-            <div class="stage-pill">P6 / 07</div>
+            <div class="stage-pill">P7 / 07</div>
           </div>
           <div class="title-wrap">
             <h1 class="title">Z<span>-</span>RUSH</h1>
@@ -523,34 +627,54 @@
           </div>
         </div>
         <div class="boot-mid">
-          <div>视角 <b>正俯视</b> · 战场占屏 <b>83%</b></div>
-          <div>队伍 <b>21 档</b> · 显示上限 <b>24</b> 人</div>
-          <div>每 <b>2 分钟</b> 一头 <b>巨型</b> · 四次挥击，躲不掉</div>
-          <div>武器 <b>步枪 / 霰弹 / 狙击</b> · 升级 +20%</div>
+          <div>视角 <b>正俯视</b> · 战场 <b>83%</b></div>
+          <div>队伍 <b>21 档</b> · 上限 <b>24</b> 人</div>
+          <div>每 <b>2 分钟</b> 一头 <b>巨型</b> · 四挥</div>
+          <div>枪 <b>步枪 / 霰弹 / 狙击</b> · +20%</div>
+          <div class="boot-rec" id="bootRec"></div>
         </div>
         <div class="boot-bottom">
           <button id="startBtn">进 入 断 桥</button>
-          <div class="boot-hint">左右拖动选门 · 琥珀门是枪 · D 调试</div>
+          <div class="boot-hint">左右拖动选门 · 琥珀门是枪 · P 暂停 · D 调试</div>
         </div>
       </div>
 
       <div id="over">
         <div class="tag">断 桥 尽 头</div>
         <div class="over-rank" id="overRank">D</div>
+        <div class="over-new" id="overNew">新 纪 录</div>
         <div class="over-lead"><b id="overPeak">0</b>人走到这里，全部留在了桥上</div>
         <div class="over-cause" id="overCause">死于第 1 个 Boss</div>
         <div class="over-rows">
           <div><span>距离</span><b id="overDist">0 m</b></div>
           <div><span>坚持</span><b id="overTime">0:00</b></div>
           <div><span>击杀 Boss</span><b id="overBoss">0</b></div>
-          <div><span>火力缺口（k/K）</span><b id="overRatio">1.00</b></div>
+          <div><span>武器门采纳率</span><b id="overRatio">—</b></div>
           <div><span>最高档位</span><b id="overTier">V1</b></div>
           <div><span>最后的枪</span><b id="overGun">手枪</b></div>
           <div><span>总分</span><b id="overScore">0</b></div>
+          <div class="rec"><span>最好成绩</span><b id="overBest">—</b></div>
         </div>
         <div class="over-note" id="overNote">换枪清零的是等级，不是命。<br>下一次，先看清是什么编队再选门。</div>
         <button id="againBtn">再 冲 一 次</button>
       </div>
+
+      <div id="pauseLayer">
+        <div class="pause-card">
+          <div class="pause-cap">已 暂 停</div>
+          <div class="pause-rows">
+            <div><span>距离</span><b id="pauseDist">0 m</b></div>
+            <div><span>坚持</span><b id="pauseTime">0:00</b></div>
+            <div><span>眼前</span><b id="pauseNow">—</b></div>
+          </div>
+          <button id="pauseResume">继 续</button>
+          <button id="pauseQuit" class="ghost">放 弃 这 局</button>
+        </div>
+      </div>
+
+      <button id="pauseBtn" title="暂停 (P)">
+        <span></span><span></span>
+      </button>
 
       <div id="rotate">
         <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
@@ -811,21 +935,33 @@ function srand(a,b){ return a + sr() * (b - a); }
    P0.3 · 画布 / DPR / 尺寸
    ========================================================================= */
 const frame = document.getElementById("frame");
+const stage = document.getElementById("stage");
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d", { alpha: false });
 
 const View = { cssW: W, cssH: H, dpr: 1, scale: 1 };
 
 function resize() {
-  // P0.2：横屏不重排，只是画面等比缩小、四周留黑边
-  const availW = window.innerWidth;
-  const availH = window.innerHeight;
+  /* ---- P7.4 安全区 ----
+     iPhone 的刘海和底部小白条会盖掉 HUD 的左右两端与暂停按钮。
+     这里把可用区域**缩进**到安全区之内，而不是让画布铺满屏幕再给 UI 加 padding ——
+     后者会让"画布尺寸"和"触摸坐标换算"用两套边界，1:1 拖动就会对不上手指。
+     缩进的代价是四周多一点黑边，但拖动依然精确。 */
+  const sa = safeInsets();
+  const availW = window.innerWidth - sa.left - sa.right;
+  const availH = window.innerHeight - sa.top - sa.bottom;
   const scale = Math.min(availW / W, availH / H);
   View.scale = scale;
   View.cssW = Math.floor(W * scale);
   View.cssH = Math.floor(H * scale);
   frame.style.width  = View.cssW + "px";
   frame.style.height = View.cssH + "px";
+  /* 居中于**安全区**而不是整个视口：sa.top/bottom 不等时（横屏刘海在左）
+     要按安全区的中心对，否则画面会偏。 */
+  stage.style.paddingTop = sa.top + "px";
+  stage.style.paddingBottom = sa.bottom + "px";
+  stage.style.paddingLeft = sa.left + "px";
+  stage.style.paddingRight = sa.right + "px";
 
   // DPR 上限 2：高分屏足够清晰，同时避免 3x 屏幕的填充率爆炸
   View.dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -839,6 +975,28 @@ function resize() {
   // UI 字体按缩放比联动（--u = 逻辑 1px 对应的 CSS px）
   frame.style.setProperty("--u", scale + "px");
   frame.style.setProperty("--rotate-u", Math.min(scale, 1) + "px");
+}
+
+/* 读 env(safe-area-inset-*) 的实测值。
+   不能直接写 CSS 变量给 JS 用 —— 这里用一个临时元素量一次，
+   拿到的是浏览器解析后的真实 px（含 0 的情况）。 */
+let _saEl = null;
+function safeInsets() {
+  if (!_saEl) {
+    _saEl = document.createElement("div");
+    _saEl.style.cssText =
+      "position:fixed;inset:0;pointer-events:none;visibility:hidden;" +
+      "padding:env(safe-area-inset-top) env(safe-area-inset-right) " +
+      "env(safe-area-inset-bottom) env(safe-area-inset-left);";
+    document.body.appendChild(_saEl);
+  }
+  const cs = getComputedStyle(_saEl);
+  return {
+    top: parseFloat(cs.paddingTop) || 0,
+    right: parseFloat(cs.paddingRight) || 0,
+    bottom: parseFloat(cs.paddingBottom) || 0,
+    left: parseFloat(cs.paddingLeft) || 0
+  };
 }
 window.addEventListener("resize", resize, { passive: true });
 window.addEventListener("orientationchange", () => setTimeout(resize, 120));
@@ -914,6 +1072,15 @@ const sfx = (() => {
     /* 移动端要求首次手势后再 resume()，其余接口在没解锁时安静地空转 */
     unlock() { const a = init(); if (a && a.state === "suspended") a.resume(); },
     get ready() { return !!ac; },
+    /* 暂停要连声音一起停：不停的话，切出去之后枪声还会在后台响几十声，
+       再切回来那一串声全挤在一起炸开。suspense 只作用在音频上下文，
+       恢复时不需要重新 init —— ac 还活着。 */
+    pause() { if (ac && ac.state === "running" && ac.suspend) ac.suspend(); },
+    resume() { if (ac && ac.state === "suspended" && ac.resume) ac.resume(); },
+    /* 给 iOS 用：interrupted 是 iPad/iPhone 特有的第三种状态
+       （来电、切后台、被别的 App 抢走音频之后就是它），它不响应 resume()，
+       必须重新 init。外面靠这个读状态决定要不要走"重新解锁"的路径。 */
+    state() { return ac ? ac.state : "none"; },
 
     shot(gun) {
       if (!init()) return;
@@ -2206,6 +2373,13 @@ function gateSpawnZ() {
 let pair = null;
 let pairCount = 0;            // 累计生成对数，调试用
 let pairMaxAlive = 0;         // 观测到的最大存活对数，必须恒为 1
+/* ---- 武器门采纳率（P7.1）----
+   offered = 递到你面前的次数（这一对门里确实有枪）
+   taken   = 你真的迈过去了的次数
+   这两个数只有比值有意义，绝对值没有。它是**全部统计里唯一一个
+   "下一次可以靠行为改变"的数** —— 所以它必须出现在尸检报告里，
+   而 k/K 不必（那个数在数学上注定只有 0.0x）。 */
+let weaponOffered = 0, weaponTaken = 0;
 
 /* 加法门：n 由"当前人数 × 系数 × 0.8~1.2"算出，系数取决于对面站着谁（§6.2.2）。
    这是整套双资源系统的等价兑换：对面 ×2 就给 100%，对面武器就给 20%。 */
@@ -2348,6 +2522,10 @@ function makePair() {
   return {
     z: gateSpawnZ(),        // 屏外生成（且整块离线），自己滚进来
     left, right,
+    /* 这一对门里有没有枪可捡。**必须在生成时定格**：
+       结算那一刻 pair 已经被 resolved、g 已经是选中的那扇，
+       再回头看"有没有武器门"就只能看到左边那扇 —— 计数会永远偏低。 */
+    hasWeapon: left.op === "weapon" || right.op === "weapon",
     resolved: false,
     hitSide: 0,             // -1 左 / 1 右 / 0 未结算。只影响表现，不参与判定
     fade: 1,
@@ -2359,6 +2537,7 @@ function spawnPair() {
   pair = makePair();
   pair.enteredAt = simT;
   pairCount++;
+  if (pair.hasWeapon) weaponOffered++;
 }
 
 /* 穿门结算：门中心越过队伍线的那一帧判一次（§6.2.2 生成时锁定数值）。
@@ -2403,6 +2582,12 @@ function resolvePair() {
   const isW = g.op === "weapon";
   applyGate(g);
   const after = Squad.count;
+  /* ---- 武器门采纳率（P7.1 的尸检指标）----
+     这个数是**唯一一个玩家真的能改变的统计**：
+       "游戏递给你 8 次枪，你捡了 3 次" —— 下次看见枪就该迈过去。
+     而原来的 k/K 做不到这一点（见 §6.6.6 末尾的诊断：k/K 恒在 0.02–0.27，
+     阈值 1.0 在这套数值里根本不存在，面板的建议等于永远在说同一句话）。 */
+  if (isW && pair.hasWeapon) weaponTaken++;   // hasWeapon：这一对门里确实有枪可捡
   /* 记下"穿过去之后的确切人数"。这不参与任何逻辑，是给自检用的：
      门结算和"同一帧被咬"是在同一次 step 里发生的，从外面看只能看到
      两者叠加的结果，无法区分"门算错了"和"门算对了但这一帧掉了两千人"。 */
@@ -3852,6 +4037,71 @@ let clamps = 0, frames = 0, frameMs = 0;
 let fps = 60, fpsAcc = 0, fpsFrames = 0;
 let phase = "BOOT";
 
+/* =========================================================================
+   P7.3 · 暂停 / 纪录
+   -------------------------------------------------------------------------
+   暂停是一个**状态**，不是一个动作。所以它不碰 simT、不碰任何实体，
+   只把 loop 里的 dt 换成 0 —— 这样"暂停中"和"暂停前"是同一个世界，
+   恢复时不会出现半帧跳变、不会漏一次门结算、不会让 Boss 白走一段。
+
+   纪录存 localStorage。**必须 try/catch 包住**：Safari 无痕模式里
+   localStorage 会直接抛异常，不包就等于整个游戏在开场就崩了。
+   ========================================================================= */
+let paused = false;
+const REC_KEY = "zrush.records.v1";
+
+function readRecords() {
+  try {
+    const raw = localStorage.getItem(REC_KEY);
+    if (!raw) return { best: 0, bestBoss: 0, bestScore: 0, runs: 0, bestRank: "", bestDist: 0 };
+    const o = JSON.parse(raw);
+    return {
+      best: +o.best || 0, bestBoss: +o.bestBoss || 0, bestScore: +o.bestScore || 0,
+      runs: +o.runs || 0, bestRank: o.bestRank || "", bestDist: +o.bestDist || 0
+    };
+  } catch (e) {
+    return { best: 0, bestBoss: 0, bestScore: 0, runs: 0, bestRank: "", bestDist: 0 };
+  }
+}
+function writeRecords(o) {
+  try { localStorage.setItem(REC_KEY, JSON.stringify(o)); } catch (e) {}
+}
+/* 一局结束时调用。返回**这一局破了哪些纪录**，用来在面板上给一行"新纪录"。
+   只记四项、且互相独立：活得久、杀得多、分数高、走得远。*/
+function commitRecord(r) {
+  const old = readRecords();
+  const next = {
+    best: Math.max(old.best, r.t),
+    bestBoss: Math.max(old.bestBoss, r.boss),
+    bestScore: Math.max(old.bestScore, r.score),
+    runs: old.runs + 1,
+    bestRank: old.bestRank,
+    bestDist: Math.max(old.bestDist, r.dist)
+  };
+  /* 评级不是"最大"，是"最好那一档"。D<C<B<A<S，所以按序比较。
+     单存时间也能算回来，但存下来可以让主菜单不依赖 rankOf 的实现细节。 */
+  const ord = { D: 0, C: 1, B: 2, A: 3, S: 4 };
+  if ((ord[r.rank] || 0) >= (ord[next.bestRank] || -1)) next.bestRank = r.rank;
+  writeRecords(next);
+  return {
+    time: r.t > old.best,
+    boss: r.boss > old.bestBoss,
+    score: r.score > old.bestScore,
+    dist: r.dist > old.bestDist,
+    first: old.runs === 0,
+    prevBest: old.best
+  };
+}
+
+function setPaused(on) {
+  if (phase !== "PLAY" && on) return;      // 只有正在打的时候能暂停
+  if (paused === on) return;
+  paused = on;
+  $("pauseLayer").classList.toggle("on", on);
+  $("pauseBtn").classList.toggle("on", phase === "PLAY" && !on);
+  if (on) sfx.pause(); else sfx.resume();
+}
+
 function loop(now) {
   if (!running) return;
   const t0 = performance.now();
@@ -3861,8 +4111,13 @@ function loop(now) {
   if (dt > DT_MAX) { dt = DT_MAX; clamps++; }
   if (dt < 0) dt = 0;
 
-  simT += dt;
-  update(dt);
+  /* ---- 暂停（P7.3）----
+     **暂停不是"把 rAF 停掉"**：停掉之后浏览器不再合成画布，切回来那一帧
+     会连同 CSS 过渡一起冻住（P4 截图时踩过这个坑）。这里仍然每帧调用
+     update/render，只是把推进量 dt 换成 0 —— 画面照常合成，世界不动。
+     同时 `last` 已经更新过，切回来不会因为 dt 巨大而跳一帧。
+     这个 0 的替换放在 advance() 里，让无头模拟走的 step() 也经过同一条路。 */
+  advance(dt);
   render();
 
   fpsAcc += dt; fpsFrames++;
@@ -3870,6 +4125,15 @@ function loop(now) {
   frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
   frames++;
   requestAnimationFrame(loop);
+}
+
+/* 世界推进的唯一入口。**暂停必须在这里兑现** ——
+   如果只写在 loop 里，无头自检的 step() 会绕过它，"暂停时世界不动"
+   这条规则就永远测不到（is 一个只在一种调用路径上成立的不变量）。 */
+function advance(dt) {
+  if (paused) dt = 0;
+  simT += dt;
+  update(dt);
 }
 
 function update(dt) {
@@ -3962,9 +4226,16 @@ function render() {
    输入：只改 squad.targetX，没有第二个轴（§4.4.3）
    ========================================================================= */
 let dragging = false, dragStartClientX = 0, dragStartX = 0;
+let dragPid = null;                  // 记住是哪一根手指在拖
 
 function pointerDown(e) {
   if (e.target.closest("button")) return;
+  if (paused) return;                // 暂停时不许拖 —— 否则世界停着人却在动
+  /* ---- P7.4 双指误触 ----
+     第二根手指按下来时**不能重新取起点**：否则队列会在两指之间跳一下，
+     而玩家完全没打算动。第一根手指按住期间，其余指针一律忽略。 */
+  if (dragPid !== null) return;
+  dragPid = e.pointerId;
   sfx.unlock();                      // 移动端：必须由手势解锁 AudioContext
   dragging = true;
   dragStartClientX = e.clientX;
@@ -3973,11 +4244,18 @@ function pointerDown(e) {
 }
 function pointerMove(e) {
   if (!dragging) return;
+  if (dragPid !== null && e.pointerId !== dragPid) return;   // 不是它在拖
   // 位移 1:1 映射：屏幕 px → 世界米。正俯视下这个换算是常数，不随距离变
   const metersPerCssPx = 1 / (PPM * View.scale);
   Squad.targetX = clamp(dragStartX + (e.clientX - dragStartClientX) * metersPerCssPx, -SQUAD_LIMIT, SQUAD_LIMIT);
 }
-function pointerUp() { dragging = false; }
+function pointerUp(e) {
+  /* 只有"拖的那根手指"抬起才算结束。否则两指一起玩时，
+     先抬起的那根会提前结束拖动，剩下那根就变成按了没反应。 */
+  if (dragPid !== null && e && e.pointerId !== undefined && e.pointerId !== dragPid) return;
+  dragging = false;
+  dragPid = null;
+}
 
 frame.addEventListener("pointerdown", pointerDown);
 window.addEventListener("pointermove", pointerMove);
@@ -3988,10 +4266,15 @@ const keys = {};
 window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") { keys[e.key] = true; e.preventDefault(); }
   if (e.key === "d" || e.key === "D") toggleDebug();
+  /* P / Esc 暂停。Esc 在手机浏览器上是"退出全屏"，所以只绑 P —— 绑 Esc
+     会让玩家想暂停时反而退出了全屏，再回来还得重新手势解锁音频。 */
+  if (e.key === "p" || e.key === "P") {
+    if (phase === "PLAY") setPaused(!paused);
+  }
   if (e.key === "Enter" && phase === "BOOT") startGame();
   // 临时：数字键换枪，方便直接看四种武器在战士手上的样子
   const wm = { "1": "pistol", "2": "rifle", "3": "shotgun", "4": "sniper" };
-  if (wm[e.key]) { Squad.weapon = wm[e.key]; updateHudWeapon(); }
+  if (wm[e.key] && phase === "PLAY" && !paused) { Squad.weapon = wm[e.key]; updateHudWeapon(); }
 });
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
@@ -4002,7 +4285,30 @@ setInterval(() => {
   if (keys.ArrowRight) Squad.targetX = clamp(Squad.targetX + speed * dt, -SQUAD_LIMIT, SQUAD_LIMIT);
 }, 1000 / 60);
 
-document.addEventListener("visibilitychange", () => { last = 0; });
+/* P7.4 · iOS 音频解锁
+   iOS Safari 的规矩比 Android 严格两层：
+     1. AudioContext 必须在**真实的用户手势**里创建或 resume。程序里
+        自己调 resume() 会被静默拒绝（不报错、不生效，查起来极难）。
+     2. 切到后台再回来，context 会变成 "interrupted"（不是 suspended），
+        必须再有一次手势才能恢复。
+   所以解锁挂在三个地方：首次指针按下、首次按键、以及每次 startGame。
+   三处都是真人操作，没有一处是定时器 —— 定时器里的 resume 一定失败。 */
+function unlockAudio() {
+  sfx.unlock();
+  const st = sfx.state ? sfx.state() : "";
+  if (st === "interrupted" || st === "suspended") sfx.resume();
+}
+document.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
+document.addEventListener("keydown", unlockAudio, { once: true });
+document.addEventListener("touchend", unlockAudio, { once: true, passive: true });
+
+document.addEventListener("visibilitychange", () => {
+  last = 0;
+  /* 切回来时如果不是在暂停状态，先把音频恢复。
+     注意**不自动暂停**：玩家切出去看一眼消息，回来还在打，
+     自动暂停会让他在那一秒里被白打三下。 */
+  if (!document.hidden && !paused) sfx.resume();
+});
 window.addEventListener("blur", () => { last = 0; });
 
 /* =========================================================================
@@ -4146,6 +4452,15 @@ function mmss(s) {
 
 function updateHud() {
   if (phase !== "PLAY") return;
+  /* 暂停时也刷新这一屏 —— 暂停层上的三个数（距离 / 坚持 / 眼前）
+     是玩家用来回忆"我刚才在干嘛"的，不能停在他按下暂停那一刻之前的旧值。 */
+  if (paused) {
+    $("pauseDist").textContent = Math.round(scrollM) + " m";
+    $("pauseTime").textContent = mmss(simT);
+    $("pauseNow").textContent = boss ? "巨型 · 第 " + boss.no + " 个"
+      : (bossWarnT > 0 ? "巨型将到" : ((FORMATIONS[curFormation] || {}).name || "—"));
+    return;
+  }
   $("hudN").textContent = abbr(Math.round(Squad.shown));
   syncHudTeam();
   $("hudDist").textContent = Math.round(scrollM);
@@ -4209,6 +4524,7 @@ function resetRun() {
   zombies.length = 0; casualties.length = 0; waveHit.clear();
   parts.length = 0; floaters.length = 0; BULLETS.length = 0;
   pair = null; pairCount = 0; pairMaxAlive = 0;
+  weaponOffered = 0; weaponTaken = 0;
   lastWeaponGate = null; weaponShown = 0;
   waveCount = 0; wavePower = 0; curFormation = "horde";
   lastFormation = null; formStreak = 0;
@@ -4230,9 +4546,13 @@ function resetRun() {
 function startGame() {
   resetRun();
   phase = "PLAY";
+  paused = false;
+  $("pauseLayer").classList.remove("on");
+  $("pauseBtn").classList.add("on");
   sfx.unlock();                      // 点"开始"是最早的可靠手势，在这里解锁声音
   $("boot").classList.add("hidden");
   $("over").classList.remove("on");
+  $("overNew").classList.remove("on");
   $("hud").classList.add("on");
   $("bossBar").classList.remove("on");
   $("bossWarn").classList.remove("on");
@@ -4293,28 +4613,97 @@ function showOver() {
     : "死于第 " + waveCount + " 波遭遇" + tail;
   $("overCause").textContent = cause;
 
-  /* ---- k / K 缺口：全作唯一一个"技术指标" ----
-     < 1 → 火力没跟上丧尸变硬的速度 → 该多选武器门
-     > 1.5 → 火力超前 → 死是因为人不够 → 该多选加法门
-     这两个读法必须写在面板上，否则玩家看到 0.8 只会觉得"这是个数字"。 */
-  const ratio = deathRatio;
+  /* ---- 武器门采纳率：全作唯一一个"下一次能靠行为改变"的数 ----
+     ------------------------------------------------ 为什么不写 k/K ----
+     P7.1 跑完 20 局才发现：**k/K 在这套数值里恒在 0.02–0.27，阈值 1.0 不存在。**
+     原因在数学里 —— 每波损耗 = α·K·N^-0.1 / k，死亡时这个比例必然越过 100%
+     （被 55% 上限接住，所以两波内必死）。而 k/K 的分母 K 是"每波战斗力基线"，
+     它每 4.5 秒就翻一倍，玩家的 k 每分钟只涨 20%。理论上限（永远升级同一把枪
+     到 Lv6）在 4:00 也只有 0.28。也就是说：**这个数字永远不会接近 1，
+     把它写成"1.0 = 达标"是在骗玩家。** 面板上写着"下次多选武器门"，
+     而最后 25 秒武器门已经被锁死 —— 那句话说了等于没说。
+
+     采纳率不一样：它是**行为**，玩家下一次真的能改。
+     "递给你 8 次枪你捡了 3 次" → 下次看见琥珀门就迈过去。 */
+  const off = weaponOffered, tak = weaponTaken;
+  const rate = off > 0 ? tak / off : -1;
   const el = $("overRatio");
-  el.textContent = ratio.toFixed(2);
-  el.className = ratio < 1 ? "neg" : ratio > 1.5 ? "pos" : "";
+  if (off <= 0) {
+    el.textContent = "— 没递过枪";
+    el.className = "";
+  } else {
+    el.textContent = tak + " / " + off + " · " + Math.round(rate * 100) + "%";
+    /* 低于 40% 标红：三次里只捡一次，火力必然跟不上；
+       高于 70% 标绿：这个人已经在按 §6.3 的流派思路玩了。 */
+    el.className = rate < .4 ? "neg" : rate > .7 ? "pos" : "";
+  }
   $("overBoss").textContent = bossKills + " 个";
   $("overScore").textContent = abbr(scoreOf());
 
-  $("overNote").innerHTML = ratio < 1
-    ? "k / K = " + ratio.toFixed(2) + "：火力跟不上了。<br>下一次，武器门优先级高于人数门。"
-    : "k / K = " + ratio.toFixed(2) + "：火力够用。<br>下一次，缺的是人 —— 多选加法门。";
+  /* ---- 提示文案：必须指向一个**下一次做得到**的动作 ----
+     三种读法对应三种真正不同的失败，不能合成一句"再多练练"： */
+  let note;
+  if (deathCause === "boss") {
+    note = "Boss 的账在它现身那一刻就定死了。<br>" +
+      (rate >= 0 && rate < .5
+        ? "递给你 " + off + " 次枪，你捡了 " + tak + " 次 —— 下一次，先换枪。"
+        : "下一次，在它出现前 25 秒把人攒够。");
+  } else if (rate >= 0 && rate < .4) {
+    note = "第 " + Math.round((1 - rate) * 100) + "% 的枪你没捡。<br>" +
+      "下一次，琥珀门优先于人数门。";
+  } else if (rate > .7 && off >= 4) {
+    note = "火力已经拉满了，问题在人。<br>下一次，加法门优先于换枪门。";
+  } else {
+    note = "换枪清零的是等级，不是命。<br>下一次，先看清是什么编队再选门。";
+  }
+  $("overNote").innerHTML = note;
+
+  /* ---- 纪录（P7.3）----
+     必须在这里提交，不能放进 gameOver()：gameOver 是"你死了"的那一刻，
+     而 showOver 是"你看到自己怎么死的"那一刻。中间那 0.55 秒里
+     Squad.count 已经被清零、rankOf 还没算 —— 在 gameOver 里提交会把
+     一局 4 分钟的成绩记成 0。 */
+  const rec = commitRecord({
+    t: simT, boss: bossKills, score: scoreOf(), dist: scrollM, rank: rankOf(simT)
+  });
+  const best = readRecords();
+  $("overBest").textContent = mmss(best.best) + " · " + (best.bestRank || "—");
+  const anyNew = rec.time || rec.boss || rec.score || rec.dist;
+  $("overNew").classList.toggle("on", anyNew && !rec.first);
+  /* 第二次及以后的局才有"最好成绩"可超；第一次那一局不该弹"新纪录" ——
+     那是"你终于开始了"，不是"你破了自己" 。*/
 
   $("over").classList.add("on");
   $("hud").classList.remove("on");
   $("bossBar").classList.remove("on");
   $("bossWarn").classList.remove("on");
+  $("pauseBtn").classList.remove("on");
 }
 $("startBtn").addEventListener("click", startGame);
 $("againBtn").addEventListener("click", startGame);
+
+/* ---- 暂停按钮 / P 键 / 暂停层 ----
+   三个入口全部走 setPaused，只有一份状态。
+   暂停层点背景不恢复（必须点"继续"）：手指误触背景就把人拉回战场，
+   比暂停失效更糟 —— 那一瞬间正是尸潮贴脸的时候。 */
+$("pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); setPaused(true); });
+$("pauseResume").addEventListener("click", () => setPaused(false));
+$("pauseQuit").addEventListener("click", () => {
+  setPaused(false);
+  gameOver();                        // 主动放弃也算一局：纪录照样提交
+  overT = 0;                         // 不留那 0.55 秒的余韵，立刻给面板
+  showOver();
+});
+
+/* 主菜单的纪录行：每局结束回主菜单才刷新，不每帧读 localStorage */
+function refreshBootRec() {
+  const r = readRecords();
+  $("bootRec").innerHTML = r.runs === 0
+    ? ""
+    : "最好 <b>" + mmss(r.best) + "</b> · 评级 <b>" + (r.bestRank || "—") + "</b><br>" +
+      "已跑 <b>" + r.runs + "</b> 局 · 击杀 Boss <b>" + r.bestBoss + "</b> · 最远 <b>" + r.bestDist + "</b> m";
+}
+refreshBootRec();
 
 /* =========================================================================
    启动
@@ -4348,7 +4737,7 @@ window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
      一局 6 分钟可以在 2 秒内跑完 —— 调 α / K / 门配比全靠它。 */
   WEAPONS, GUN_ORDER, COMBAT, kOf, kFor, levelMul, colCovered, previewLoss,
   SQUAD_REACH, FIRST_WAVE_DELAY,
-  step: (dt) => { simT += dt; update(dt); },
+  step: (dt) => { advance(dt); },
   resetRun, startGame, gameOver,
   get wavePower() { return wavePower; },
   get casualties() { return casualties; },
@@ -4375,6 +4764,14 @@ window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
   get deathCause() { return deathCause; },
   get deathPct() { return deathPct; },
   get deathRatio() { return deathRatio; },
+  get weaponOffered() { return weaponOffered; },
+  get weaponTaken() { return weaponTaken; },
+  /* ---- P7 自检出口 ---- */
+  setPaused, readRecords, writeRecords, commitRecord, safeInsets, resize,
+  /* 沙箱里的 Math：无头取样要**在 vm context 内部**替换 Math.random 才能播种。
+     在外面改 Node 的 Math.random 对这份脚本无效（两套内建对象）。 */
+  __math: Math,
+  get paused() { return paused; },
   get redFlash() { return redFlash; } };
 
 </script>

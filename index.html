@@ -292,7 +292,7 @@
             <div id="hudFormation">— 无遭遇 —</div>
           </div>
         </div>
-        <div class="hud-bottom" id="hudHint">v0.20 · 节奏调整　左右拖动选门 · D 调试</div>
+        <div class="hud-bottom" id="hudHint">v0.21 · 门贴合　左右拖动选门 · D 调试</div>
       </div>
 
       <div id="fpsBadge"></div>
@@ -300,7 +300,7 @@
       <button id="dbgToggle" title="调试面板 (D)">D</button>
 
       <div id="debug">
-        <div class="row head"><span>DEBUG · v0.20 节奏返工</span><span id="dbgPhase">BOOT</span></div>
+        <div class="row head"><span>DEBUG · v0.21 门贴合</span><span id="dbgPhase">BOOT</span></div>
         <div class="row">
           <span>FPS <b id="dbgFps">60</b></span>
           <span>帧耗时 <b id="dbgMs">0</b>ms</span>
@@ -327,6 +327,7 @@
           <span>左 <b id="dbgGL">—</b></span>
           <span>右 <b id="dbgGR">—</b></span>
           <span id="dbgAliveWrap">存活峰值 <b id="dbgAlive">0</b></span>
+          <span id="dbgGapWrap">门缝 <b id="dbgGap">0.000</b></span>
         </div>
         <div class="row">
           <span>编队 <b id="dbgWave">—</b></span>
@@ -1173,6 +1174,18 @@ function drawSquad(t) {
   ctx.restore();
 }
 
+/* ---------- 判定点**不画**（§6.2.2.1） ----------
+   队伍中心点（squadCenterX）只是逻辑量：它决定穿门时结算哪一边，
+   但**绝不出现在画面上**。
+   理由：一旦画出三角 / 准星 / 刻度，玩家就会开始"对线"而不是"看路"——
+   视线从尸潮和门上挪到自己脚下的一个标记，那正是超休闲最不该有的操作负担。
+   分界本身已经有两样可见物：门中央的分界光缝、桥面的车道虚线。
+   玩家看到门、看到人在哪一侧，就够了；判定点是实现细节。
+
+   如果将来真的出现"我明明在左边却算成右边"的反馈，先检查
+   resolvePair 里的 squadCenterX() 与 drawSquad 里用的 Squad.x 是否同源，
+   而不是把这个点画出来。 */
+
 /* =========================================================================
    P3.4 · 丧尸波（§6.4）
    -------------------------------------------------------------------------
@@ -1463,18 +1476,27 @@ function leadZombieZ() {
    P2 · 门系统（§6.2）
    -------------------------------------------------------------------------
    正俯视下门不再是"立起来的高门框"，而是**平铺在桥面上的发光门区**：
-   两块矩形能量面，左右各一，中间留一条 0.45 m 的缝。
+   两块矩形能量面，左右各一，**在 x = 0 处严丝合缝贴在一起**（v0.21 改）。
 
    几何（全部由 §6.2.8 推出来，不许随手改）：
-     门区中心   x = ±1.40 m
-     门区宽     2.35 m   → 外缘 2.575 m，正好在战场边界 2.66 m 内
-     门区纵深   1.60 m   → 屏高 14%，读得出"一扇门"而不是一条横杠
-     中央缝     2×1.40 − 2.35 = 0.45 m
-   队伍中心走位范围 ±1.56 m，所以左右两侧都在门区覆盖内，只有故意走中线才会从缝里穿过。
+     门区宽     = FIELD_HALF = 2.66 m（每道门正好占半个战场）
+     门区中心   x = ±1.33 m
+     外缘       1.33 + 1.33 = 2.66 m = 战场边界，最外侧战士正好踩在门沿上
+     中央缝     0（两门相接，中线就是分界线）
+     门区纵深   1.85 m
+
+   **为什么必须贴紧**：留 0.45 m 缝的时候，队伍中心走到中线附近会从缝里穿过去，
+   判定结果是"错过"——玩家看到自己明明站在两门之间，却什么都没拿到，
+   会把这条读成 bug。贴紧之后战场被两门完整二分，**每一次穿门都有结果**，
+   留下的唯一判断题就是"我在中线左边还是右边"。
+
+   代价是：队伍宽 1.6 m，中心在 0 附近时人会横跨两门。所以判定必须收束到
+   **一个绝对中间点**（§6.2.2.1），不能再看成员或队形宽度——`squadCenterX()`。
    ========================================================================= */
+const GATE_W = FIELD_HALF;               // 2.66 m，由战场半宽推出，改边界时自动跟随
 const GATE = {
-  cx: 1.40,
-  w: 2.35,
+  w: GATE_W,
+  cx: GATE_W / 2,                        // 1.33 m → 两门在 x = 0 相接，中缝 0
   /* 纵深 0.90 → 1.85 m（76 → 155 px）。
      0.90 m 那版在屏幕上是一条 197×76 的横条，读起来像"进度条"而不是"一扇门"，
      数字被压在上边沿，俯视下完全没有"穿过去"的体积感。
@@ -1584,6 +1606,7 @@ function makePair() {
     z: gateSpawnZ(),        // 屏外生成（且整块离线），自己滚进来
     left, right,
     resolved: false,
+    hitSide: 0,             // -1 左 / 1 右 / 0 未结算。只影响表现，不参与判定
     fade: 1,
     enteredAt: 0
   };
@@ -1595,21 +1618,43 @@ function spawnPair() {
   pairCount++;
 }
 
-/* 穿门结算：只在"门区中心越过队伍线"那一帧判一次（§6.2.2 生成时锁定数值）。
-   判定用队伍中心点，命中就看它落在哪块门区里；落在中间缝里什么也拿不到。 */
-function resolvePair() {
-  pair.resolved = true;
-  const halfW = GATE.w / 2;
-  const g = Math.abs(Squad.x + GATE.cx) <= halfW ? pair.left
-          : Math.abs(Squad.x - GATE.cx) <= halfW ? pair.right
-          : null;
+/* 穿门结算：门中心越过队伍线的那一帧判一次（§6.2.2 生成时锁定数值）。
+   **判定点 = 队伍中心点的横坐标，但它只是逻辑量，不画在画面上（§6.2.2.1）。**
 
-  if (!g) {
-    // 从缝里穿过：不是 bug，是"你看错了"的代价。
-    // 颜色要用深灰：亮色桥面上浅灰字会糊成一块，看不清到底发生了什么
-    addFloater("错过", W / 2, SQUAD_Y - 60, "#5C6C79", 26);
-    return;
-  }
+   "不能同时吃到两扇门"由三层保证，缺一层都会重新出现双吃：
+     1. **几何**：`GATE_W = FIELD_HALF` 推出 `cx = w/2`，两门外缘 ±2.66、
+        内缘在 x = 0 严丝合缝，重叠宽度恒为 0。`gateGeometry()` 在启动时自检，
+        调试面板里 gap 一旦不是 0.000 就标红 —— 以后谁改战场宽度都会当场发现。
+     2. **判据**：只取符号 `sx < 0`，**不写"落在哪个门区里"的区间判断**。
+        `abs(x + cx) <= w/2 || abs(x - cx) <= w/2` 那种写法在中线那一帧
+        左右条件同时为真 —— 那就是双吃的标准写法，哪怕最后只 apply 一次，
+        飘字 / 特效 / 结算位置也会两边都出。
+     3. **幂等**：函数第一行就挡住重复调用。一帧内被 update 调两次、
+        或者被贴脸那一帧的补帧再调一次，都只结算一次。
+
+   x = 0 归右门，是硬约定（写死，不做随机），否则同一位置两次结果可能不同。 */
+function squadCenterX() {
+  return Squad.x;
+}
+
+/* 几何自检：gap 必须恰好 0。
+   gap > 0 → 中线留了一条玩家吃不到的死区（v0.20 之前是 0.45 m，会漏判）；
+   gap < 0 → 中线出现重叠区，"同时吃到两门"就是从这儿开始的。 */
+function gateGeometry() {
+  const gap = 2 * GATE.cx - GATE.w;
+  const outer = GATE.cx + GATE.w / 2;
+  return { gap, outer, ok: Math.abs(gap) < 1e-9 && outer <= FIELD_HALF + 1e-9 };
+}
+
+function resolvePair() {
+  if (!pair || pair.resolved) return;      // 幂等：同一对门绝不允许结算两次
+  pair.resolved = true;
+
+  const sx = squadCenterX();
+  const g = sx < 0 ? pair.left : pair.right;   // 互斥：只可能返回一扇门
+  /* 记下命中的是哪一侧，只用来做"另一扇暗掉"的表现。
+     这不是判定的一部分——判定在上一行就已经完了，**不存在第二次结算**。 */
+  pair.hitSide = g === pair.left ? -1 : 1;
 
   const before = Squad.count;
   const label = gateLabel(g);
@@ -1652,21 +1697,43 @@ function updateGates(dt) {
   pair.z -= SCROLL * dt;
   if (!pair.resolved && pair.z <= 0) resolvePair();
   if (pair.resolved) {
-    pair.fade -= dt * 4;              // 0.25 秒淡出，然后才允许下一对
+    /* 淡出 0.42 秒（原 0.25 秒）。
+       0.25 秒时，"命中门留亮、未命中门暗掉"这个对比还没被眼睛读到就没了，
+       玩家只看到两扇门一起消失 —— 又会回到"我是不是两门都吃了"的疑问。 */
+    pair.fade -= dt * 2.4;
     if (pair.fade <= 0) pair = null;
   }
   pairMaxAlive = Math.max(pairMaxAlive, pair ? 1 : 0);
 }
 
 /* ---------- 门区绘制 ----------
-   一块门区在屏幕上只有 197 × 76 px，却要装下"×2"或"+12000"。
-   所以：底色做深（保证白字可读）、边框做亮（保证不糊在亮桥上）、
-   四角加短立柱（俯视下唯一的立体线索，说明这是一道可以从中间穿过的门）。 */
+   两门贴紧之后，**内侧边必须是直角**：一旦按 4 px 圆角收口，中线处会露出
+   两个 4×4 的缺口，看起来就是"门和门之间还是有条缝"——正好把改动目的抹掉。
+   所以路径按边生成：外侧两角圆、内侧直角；内侧边框也不画，留给 drawGateSeam
+   画一条贯穿门高的分界光缝（两门共用一条，颜色不偏向任何一边）。
+
+   另一层原因：一块门区在屏幕上 223 × 155 px，要装下"×2"或"+12000"。
+   底色做深（白字可读）、边框做亮（不糊在亮桥上）、四角加短立柱
+   （俯视下唯一的立体线索，说明这是一道可以从中间穿过的门）。 */
+function gatePath(x0, y0, wpx, hpx, r, side, closed) {
+  const xo = side < 0 ? x0 : x0 + wpx;          // 外侧竖边
+  const xi = side < 0 ? x0 + wpx : x0;          // 内侧竖边（贴中线）
+  const d = side < 0 ? 1 : -1;                  // 外侧 → 内侧
+  ctx.beginPath();
+  ctx.moveTo(xi, y0);
+  ctx.lineTo(xo + d * r, y0);
+  ctx.quadraticCurveTo(xo, y0, xo, y0 + r);
+  ctx.lineTo(xo, y0 + hpx - r);
+  ctx.quadraticCurveTo(xo, y0 + hpx, xo + d * r, y0 + hpx);
+  ctx.lineTo(xi, y0 + hpx);
+  if (closed) ctx.closePath();
+}
+
 function drawGate(g, side, z, alpha) {
   const cx = side * GATE.cx;
   const p = project(cx, z);
   /* 顶部让位：门从画面顶端进场时，左上角的队伍铭牌正好压着左门的左上角。
-     门高从 76 提到 134 px 之后，靠"把卡片缩小"已经解决不了 —— 必须让门
+     门高 155 px 之后，靠"把卡片缩小"已经解决不了 —— 必须让门
      在 y < 150 的区间按中心高度淡入。视觉上读成"从雾里显形"，
      既解决了遮挡，又比"凭空出现在半屏"自然。 */
   alpha *= clamp((p.y - 62) / 88, 0, 1);
@@ -1682,12 +1749,19 @@ function drawGate(g, side, z, alpha) {
   ctx.save();
   ctx.globalAlpha = alpha * pulse;
 
-  // 外侧光晕：让门区"照"在水泥路面上，而不是贴了一张纸
-  const halo = ctx.createRadialGradient(p.x, p.y, hh * .5, p.x, p.y, hw * 1.15);
+  /* 外侧光晕：让门区"照"在水泥路面上，而不是贴了一张纸。
+     必须裁到中外侧——两门贴紧后，越界的光晕会在中线叠出一道亮带，
+     把"一条分界光缝"变成"一块糊掉的白斑"。 */
+  ctx.save();
+  ctx.beginPath();
+  if (side < 0) ctx.rect(0, 0, W / 2, H); else ctx.rect(W / 2, 0, W / 2, H);
+  ctx.clip();
+  const halo = ctx.createRadialGradient(p.x, p.y, hh * .5, p.x, p.y, hw * 1.05);
   halo.addColorStop(0, trap ? "rgba(237,147,177,.30)" : "rgba(93,202,165,.30)");
   halo.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = halo;
-  ctx.fillRect(p.x - hw * 1.25, p.y - hh * 2.0, hw * 2.5, hh * 4.0);
+  ctx.fillRect(p.x - hw * 1.3, p.y - hh * 2.0, hw * 2.6, hh * 4.0);
+  ctx.restore();
 
   // 近侧拖影：门是从远处扑过来的，脚下要留一道被"扫过"的光带
   const tail = ctx.createLinearGradient(0, y0 + hpx, 0, y0 + hpx + 30);
@@ -1697,22 +1771,21 @@ function drawGate(g, side, z, alpha) {
   ctx.fillRect(x0 + 3, y0 + hpx, wpx - 6, 30);
 
   /* 门区本体：**必须能透过去看到后面的丧尸**。
-     门高 134 px 之后，一块不透明的色块会在它路过的那 4 秒里把整片尸潮盖掉，
+     一块不透明的色块会在它路过的 4 秒里把整片尸潮盖掉，
      玩家看到的是"两张大卡片在桥上滑"，而不是"一道能量幕"。
-     所以底色改成 80% → 38% 的纵向渐变（上浓下淡），再叠竖条纹当光幕。
-     圆角仍然是 4 px：10 px 以上立刻读成 UI 卡片。 */
+     所以底色是 62% → 24% 的纵向渐变（上浓下淡），再叠竖条纹当光幕。 */
   const rgb = trap ? "140,47,82" : "13,107,76";
   const bg = ctx.createLinearGradient(0, y0, 0, y0 + hpx);
   bg.addColorStop(0, "rgba(" + rgb + ",.62)");
   bg.addColorStop(.5, "rgba(" + rgb + ",.46)");
   bg.addColorStop(1, "rgba(" + rgb + ",.24)");
   ctx.fillStyle = bg;
-  roundRect(ctx, x0, y0, wpx, hpx, 4);
+  gatePath(x0, y0, wpx, hpx, 5, side, true);
   ctx.fill();
 
   // 光幕纹理：横扫描线（密度）+ 竖光条（方向）。只加纹理，不加不透明度
   ctx.save();
-  roundRect(ctx, x0, y0, wpx, hpx, 4);
+  gatePath(x0, y0, wpx, hpx, 5, side, true);
   ctx.clip();
   ctx.fillStyle = "rgba(255,255,255,.07)";
   for (let yy = y0 + 4; yy < y0 + hpx; yy += 7) ctx.fillRect(x0, yy, wpx, 1.6);
@@ -1737,19 +1810,40 @@ function drawGate(g, side, z, alpha) {
   ctx.fillRect(x0 + 3, y0, wpx - 6, 4.5);
   ctx.globalAlpha = alpha * pulse;
 
-  // 边框：外亮线 + 内白线
+  /* 边框：只描**外侧整边 + 上下两边**，内侧留空。
+     两门贴紧时，如果内侧也描边，两条 3 px 线会贴在一起变成 6 px 双线，
+     而且颜色归后画的那扇门所有（中线永远偏色）。
+     内侧交给 drawGateSeam 画一条两门共用的分界光缝，颜色中性。 */
+  const xo = side < 0 ? x0 : x0 + wpx;
+  const xi = side < 0 ? x0 + wpx : x0;
+  const dir = side < 0 ? 1 : -1;
+  const R = 5;
   ctx.lineWidth = 3;
   ctx.strokeStyle = edge;
-  roundRect(ctx, x0 + 1.5, y0 + 1.5, wpx - 3, hpx - 3, 4);
+  ctx.beginPath();
+  ctx.moveTo(xi, y0 + 1.5);
+  ctx.lineTo(xo + dir * R, y0 + 1.5);
+  ctx.quadraticCurveTo(xo, y0 + 1.5, xo, y0 + 1.5 + R);
+  ctx.lineTo(xo, y0 + hpx - 1.5 - R);
+  ctx.quadraticCurveTo(xo, y0 + hpx - 1.5, xo + dir * R, y0 + hpx - 1.5);
+  ctx.lineTo(xi, y0 + hpx - 1.5);
   ctx.stroke();
   ctx.lineWidth = 1;
   ctx.strokeStyle = "rgba(255,255,255,.42)";
-  roundRect(ctx, x0 + 5, y0 + 5, wpx - 10, hpx - 10, 3);
+  ctx.beginPath();
+  ctx.moveTo(xi, y0 + 5);
+  ctx.lineTo(xo + dir * (R + 3), y0 + 5);
+  ctx.quadraticCurveTo(xo + dir * 3, y0 + 5, xo + dir * 3, y0 + 5 + R + 3);
+  ctx.lineTo(xo + dir * 3, y0 + hpx - 5 - R - 3);
+  ctx.quadraticCurveTo(xo + dir * 3, y0 + hpx - 5, xo + dir * (R + 3), y0 + hpx - 5);
+  ctx.lineTo(xi, y0 + hpx - 5);
   ctx.stroke();
 
-  // 四角地钉：俯视下唯一能读出"这块门有厚度"的线索，做成小圆钉不像 UI 角标
-  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-    const bx = p.x + sx * (hw - 5), by = p.y + sy * (hh - 5);
+  /* 地钉只放在**外侧两个角**。
+     原来四角都放：两门贴紧后内侧两颗相距只有 10 px（各半径 4.4），
+     几乎相切，看起来像中线长了四个疙瘩。 */
+  for (const sy of [-1, 1]) {
+    const bx = xo + dir * -5, by = p.y + sy * (hh - 5);
     ctx.fillStyle = "rgba(20,32,40,.30)";
     ctx.beginPath(); ctx.ellipse(bx + 2, by + 3, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = edge;
@@ -1759,10 +1853,10 @@ function drawGate(g, side, z, alpha) {
   }
 
   /* 数字 / 符号：字号按位数自适应（§6.2.7）。
-     门高 134 px 之后字可以放大一档 —— 原来 5% 屏高是被 76 px 的框逼出来的。 */
+     门宽涨到 223 px 之后，四位数也不必再缩到 4% 屏高。 */
   const text = gateLabel(g);
   const digits = text.length;
-  const size = (digits <= 2 ? 0.076 : digits === 3 ? 0.062 : 0.048) * H * (trap ? 1.06 : 1);
+  const size = (digits <= 2 ? 0.078 : digits === 3 ? 0.064 : 0.050) * H * (trap ? 1.06 : 1);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = "800 " + size.toFixed(1) + "px ui-monospace,Menlo,Consolas,monospace";
@@ -1776,11 +1870,48 @@ function drawGate(g, side, z, alpha) {
   ctx.restore();
 }
 
+/* 中央分界光缝：两门贴紧后唯一还能告诉玩家"中线在哪"的东西。
+   没有它，两个同色的加法门会连成一整条横贯画面的色带，
+   玩家读到的是"一扇特别宽的门"，而不是"两扇门、你要选一边"。
+   它同时也是 §6.2.2.1 那个判定点的视觉对应物。 */
+function drawGateSeam(z, alpha) {
+  const p = project(0, z);
+  const hh = GATE.d / 2 * PPM;
+  const y0 = p.y - hh, hpx = hh * 2;
+  const a = alpha * clamp((p.y - 62) / 88, 0, 1);
+  if (a <= 0.01) return;
+
+  ctx.save();
+  ctx.globalAlpha = a;
+  // 主体：1.6 px 白色竖缝，上亮下暗，和门的纵向渐变同向
+  const g = ctx.createLinearGradient(0, y0, 0, y0 + hpx);
+  g.addColorStop(0, "rgba(255,255,255,.92)");
+  g.addColorStop(.55, "rgba(240,255,250,.46)");
+  g.addColorStop(1, "rgba(255,255,255,.10)");
+  ctx.fillStyle = g;
+  ctx.fillRect(p.x - 0.8, y0, 1.6, hpx);
+
+  // 两端各一小段加粗，读成"这条缝是边界"而不是"画面脏了"
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  ctx.fillRect(p.x - 1.6, y0, 3.2, 12);
+  ctx.fillRect(p.x - 1.6, y0 + hpx - 12, 3.2, 12);
+  ctx.restore();
+}
+
 function drawGates() {
   if (!pair) return;
-  const alpha = pair.resolved ? Math.max(0, pair.fade) : 1;
-  drawGate(pair.left, -1, pair.z, alpha);
-  drawGate(pair.right, 1, pair.z, alpha);
+  const f = pair.resolved ? Math.max(0, pair.fade) : 1;
+  /* 结算后**只有命中的那扇门继续亮着**，另一扇按 f² 更快暗下去。
+     两扇一起淡出会让"到底吃了哪一个"变成事后猜谜——
+     尤其两门同色（加法对）时，玩家只看到整条色带一起消失，会以为两门都吃了。
+     用 f² 而不是线性，是为了让未命中的门在前 0.15 秒就"塌"下去，
+     留下明显的一亮一暗；如果只是 alpha × 0.2 线性衰减，两门始终都是灰的。 */
+  const hit = pair.hitSide || 0;
+  const aL = pair.resolved ? (hit === -1 ? f : f * f * 0.12) : 1;
+  const aR = pair.resolved ? (hit === 1 ? f : f * f * 0.12) : 1;
+  drawGate(pair.left, -1, pair.z, aL);
+  drawGate(pair.right, 1, pair.z, aR);
+  drawGateSeam(pair.z, f * 0.55);
 }
 
 /* ---------- 穿门特效：碎块 + 飘字 ---------- */
@@ -2021,6 +2152,11 @@ function updateDebug() {
   $("dbgAlive").textContent = pairMaxAlive;
   // 一屏一对门是硬约束：一旦峰值 > 1 就当场标红，不能等到肉眼发现
   $("dbgAliveWrap").className = pairMaxAlive > 1 ? "warn" : "";
+  /* 门缝必须是 0.000：正数 = 中线有吃不到的死区，负数 = 中线重叠 = 会双吃。
+     这一格红了就不用往下查了，先修 GATE.cx / GATE.w 的关系。 */
+  const gg = gateGeometry();
+  $("dbgGap").textContent = gg.gap.toFixed(3);
+  $("dbgGapWrap").className = gg.ok ? "" : "warn";
   const lz = leadZombieZ();
   $("dbgWave").textContent = waveCount ? FORMATIONS[curFormation].name : "—";
   $("dbgWaveN").textContent = waveCount;
@@ -2135,8 +2271,9 @@ requestAnimationFrame((t) => { running = true; last = 0; loop(t); });
 
 // 暴露给后续阶段 / 控制台自检
 window.ZR = { CAM, W, H, PPM, SQUAD_Y, VIEW_Z, BRIDGE_HALF, FIELD_HALF, EDGE_M,
-  SQUAD_LIMIT, FORM_W, SQUAD_HALF, DRAW_MAX, GATE, ZOMB, FORMATIONS,
-  memberX, squadMembers, formationLayout, soldierScale, speedAt, addValue, gateLabel, abbr,
+  SQUAD_LIMIT, FORM_W, SQUAD_HALF, DRAW_MAX, GATE, GATE_W, ZOMB, FORMATIONS,
+  memberX, squadCenterX, squadMembers, formationLayout, soldierScale, speedAt, addValue, gateLabel, abbr,
+  gateGeometry,
   visualTier, tierForm, tierColor, tierName,
   spawnWave, leadZombieZ, pickFormation, waveGap,
   project, groundY, View, Squad, PAL,

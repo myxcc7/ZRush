@@ -1749,15 +1749,20 @@ function drawWreckage(g, L, R, TH) {
     }
   }
 
-  // 废弃车：撞在护栏上，车头压在边带里，只剩一小截探到桥外
-  const cars = [
-    { x: L + 9,  y: TH * .055, w: 50, h:  98, c: "#7c5a52", a: -.09 },
-    { x: R - 9,  y: TH * .240, w: 48, h:  94, c: "#4f6472", a:  .11 },
-    { x: L + 8,  y: TH * .405, w: 52, h: 100, c: "#6b6f5a", a: -.06 },
-    { x: R - 7,  y: TH * .620, w: 46, h:  92, c: "#5c5f6b", a:  .07 },
-    { x: L + 10, y: TH * .815, w: 50, h:  96, c: "#6f5f4c", a: -.11 }
+  // 战损军备（v0.27）：合金弹头风格的**坦克 + 坠毁直升机**，替代民用汽车。
+  // 全部撞在护栏上、压在边带里，只剩一小截探到桥外。
+  // type: "tank" = 战损坦克（军绿、炮塔、履带）；"heli" = 坠毁直升机（断尾、主旋翼）
+  const wrecks = [
+    { type: "tank", x: L + 9,  y: TH * .055, w: 54, h:  96, c: "#5a6b4a", a: -.09 },
+    { type: "heli", x: R - 9,  y: TH * .240, w: 50, h: 100, c: "#4f6472", a:  .16 },
+    { type: "tank", x: L + 8,  y: TH * .405, w: 56, h:  98, c: "#6b6f4a", a: -.06 },
+    { type: "tank", x: R - 7,  y: TH * .620, w: 52, h:  94, c: "#556047", a:  .07 },
+    { type: "heli", x: L + 10, y: TH * .815, w: 50, h: 102, c: "#5c5f6b", a: -.13 }
   ];
-  for (const c of cars) drawCarTop(g, c);
+  for (const c of wrecks) {
+    if (c.type === "heli") drawHeliTop(g, c);
+    else drawTankTop(g, c);
+  }
 
   // 翻倒的隔离墩：贴着桥沿侧躺，不占车道。v0.26 加墨线与切角。
   for (const [side, y, a] of [[1, TH * .17, 1.42], [-1, TH * .37, -1.38], [1, TH * .69, 1.36], [-1, TH * .87, -1.44]]) {
@@ -1778,74 +1783,128 @@ function drawWreckage(g, L, R, TH) {
   }
 }
 
-/* 废弃车俯视：v0.26 街机化重画。
-   roundRect 圆角车身是"SVG 痕迹"的典型代表 —— 一辆 90 年代街机的废车
-   是**切角多边形 + 墨线 + 两值色阶**：
-     · 车身外轮廓用切角板（45° 切角），不是圆角矩形；
-     · 右下 1/3 一块硬边暗面（两值阴影），左上一条硬边受光带；
-     · 车顶、风挡全部直边块；
-     · 墨线勾外轮廓，让车从亮桥面上"立"起来。 */
-function drawCarTop(g, c) {
+/* 战损坦克俯视（v0.27 · 合金弹头风）。
+   一辆街机坦克的俯视识别点：矩形车体 + **圆形炮塔**（多边形圆）+
+   一根前伸的炮管 + 两侧履带 + 战损（烧焦黑斑、断履带）。
+   全部切角块 + 墨线 + 两值色阶，无渐变。 */
+function drawTankTop(g, c) {
+  g.save(); g.translate(c.x, c.y); g.rotate(c.a);
+  const hw = c.w / 2, hh = c.h / 2;
+  const D = (f) => shade(c.c, f);
+  const TRACK = "#2b2f28", TRACKL = "#43483c";
+
+  // 投影
+  plate(g, -hw + 4, -hh + 6, c.w, c.h, 6, "rgba(26,40,50,.30)", 0);
+
+  // 两侧履带：纵向长条 + 横向履齿（一节一节的硬块）
+  for (const s of [-1, 1]) {
+    const tx = s * hw - (s < 0 ? 0 : 8);
+    plate(g, tx - (s < 0 ? 8 : 0) + (s < 0 ? 0 : 0), -hh, 8, c.h, 1.5, TRACK, 1.6);
+    g.fillStyle = TRACKL;
+    for (let i = 0; i < Math.floor(c.h / 9); i++)
+      g.fillRect(s * hw - (s < 0 ? 8 : 0), -hh + 3 + i * 9, 8, 3);
+  }
+
+  // 车体：切角板 + 墨线（比履带略窄）
+  plate(g, -hw + 7, -hh + 4, c.w - 14, c.h - 8, 5, c.c, 2.4);
+  // 右下暗面
+  inkPoly(g, [[hw * .1, -hh + 6], [hw - 8, -hh * .3], [hw - 8, hh * .6],
+              [hw * .1, hh - 6]], D(.64), 0);
+  // 左上受光带
+  inkPoly(g, [[-hw + 9, -hh + 6], [-hw * .2, -hh + 6], [-hw * .4, -hh * .2], [-hw + 9, hh * .1]], D(1.22), 0);
+  // 车体上的铆钉线：两条竖向点列
+  g.fillStyle = D(.5);
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++)
+    g.fillRect(s * hw * .5 - 1, -hh + 14 + i * 18, 2, 2);
+
+  // 炮塔：多边形圆（10 边）压在车体中上部
+  const turY = -hh * .12, turR = hw * .62;
+  polyBall(g, 0, turY, turR, turR * .92, 10, 0, D(1.1), 2.2);
+  polyBall(g, turR * .18, turY + turR * .1, turR * .62, turR * .56, 10, 0, D(.78), 0);
+  // 炮塔顶高光
+  g.fillStyle = D(1.3);
+  g.fillRect(-turR * .4, turY - turR * .5, turR * .5, 2);
+  // 舱盖：一个小方块
+  plate(g, -turR * .3, turY - turR * .2, turR * .5, turR * .4, 1.5, D(.6), 1.2);
+
+  // 炮管：从炮塔向前（-y）伸出的长条 + 枪口制退器（末端加宽块）
+  const bl = hh * .95;
+  plate(g, -2.6, turY - bl, 5.2, bl, 1, D(.9), 1.6);
+  g.fillStyle = D(1.25);
+  g.fillRect(-2.2, turY - bl, 1.6, bl);          // 炮管高光
+  plate(g, -4, turY - bl - 4, 8, 7, 1.5, D(.7), 1.6);  // 制退器
+
+  // 战损：车体上一块烧焦黑斑 + 几道划痕
+  inkPoly(g, [[-hw * .3, hh * .2], [hw * .1, hh * .3], [hw * .05, hh * .6], [-hw * .35, hh * .5]],
+          "rgba(20,22,18,.55)", 0);
+  g.strokeStyle = "rgba(20,22,18,.5)"; g.lineWidth = 1.4;
+  g.beginPath(); g.moveTo(-hw * .2, -hh * .5); g.lineTo(hw * .3, -hh * .2); g.stroke();
+  // 断裂的履带：一侧履带末端翘起一块
+  inkPoly(g, [[hw - 8, hh - 4], [hw + 4, hh + 4], [hw + 2, hh + 10], [hw - 8, hh + 2]], TRACK, 1.4);
+
+  g.restore();
+}
+
+/* 坠毁直升机俯视（v0.27 · 合金弹头风）。
+   识别点：流线机身（多边形）+ **主旋翼十字**（断了一根桨叶）+
+   尾梁 + 尾桨 + 战损（机身裂痕、烧焦）。
+   旋翼是"这是直升机不是车"的唯一决定信号，必须画成明显的十字/X。 */
+function drawHeliTop(g, c) {
   g.save(); g.translate(c.x, c.y); g.rotate(c.a);
   const hw = c.w / 2, hh = c.h / 2;
   const D = (f) => shade(c.c, f);
 
-  // 投影：一块硬边切角色（不是柔圆角）
-  plate(g, -hw + 4, -hh + 6, c.w, c.h, 8, "rgba(26,40,50,.30)", 0);
+  // 投影
+  plate(g, -hw * .5 + 3, -hh + 6, c.w * .7, c.h, 6, "rgba(26,40,50,.28)", 0);
 
-  // 车身：切角板 + 墨线
-  plate(g, -hw, -hh, c.w, c.h, 7, c.c, 2.4);
-  // 右下暗面：硬边多边形（两值阴影的"暗值"）
+  // 尾梁：从机身向后（+y）伸出的收窄长条
+  inkPoly(g, [[-4, hh * .1], [4, hh * .1], [3, hh * .95], [-3, hh * .95]], D(.85), 1.8);
+  // 尾桨：尾端一个小十字
+  g.fillStyle = "#2b2f28";
+  g.fillRect(-7, hh * .9, 14, 2.4);
+  g.fillRect(-1.2, hh * .82, 2.4, 12);
+
+  // 机身：流线多边形（前圆后收）
   inkPoly(g, [
-    [hw * .18, -hh], [hw, -hh * .6], [hw, hh * .8],
-    [hw * .3, hh], [hw * .12, hh * .4]
-  ], D(.66), 0);
-  // 左上受光带：硬边条
-  inkPoly(g, [
-    [-hw + 3, -hh + 4], [-hw * .2, -hh + 4], [-hw * .5, -hh * .4], [-hw + 3, -hh * .1]
-  ], D(1.24), 0);
+    [-hw * .42, -hh * .55], [0, -hh * .72], [hw * .42, -hh * .55],
+    [hw * .5, -hh * .1], [hw * .3, hh * .3], [-hw * .3, hh * .3], [-hw * .5, -hh * .1]
+  ], c.c, 2.4);
+  // 机身暗面（右下）
+  inkPoly(g, [[0, -hh * .6], [hw * .42, -hh * .5], [hw * .48, -hh * .05], [hw * .2, hh * .2], [0, hh * .1]], D(.66), 0);
+  // 受光带（左上）
+  inkPoly(g, [[-hw * .4, -hh * .5], [-hw * .05, -hh * .62], [-hw * .2, -hh * .1], [-hw * .42, -hh * .05]], D(1.24), 0);
 
-  // 车顶：切角块，比车身亮一档
-  plate(g, -c.w * .40, -c.h * .22, c.w * .80, c.h * .48, 4, D(1.18), 1.4);
-  // 车顶暗面（右下）
-  inkPoly(g, [
-    [c.w * .10, -c.h * .22], [c.w * .40, -c.h * .10],
-    [c.w * .40, c.h * .26], [c.w * .08, c.h * .26]
-  ], D(.92), 0);
+  // 驾驶舱风挡：机头一块深色（带玻璃反光条）
+  inkPoly(g, [[-hw * .3, -hh * .5], [hw * .3, -hh * .5], [hw * .22, -hh * .22], [-hw * .22, -hh * .22]],
+          "rgba(28,38,50,.85)", 1.4);
+  g.fillStyle = "rgba(150,180,200,.32)";
+  g.fillRect(-hw * .24, -hh * .46, hw * .34, 2.4);
 
-  // 前后风挡：直边深色块（带一点斜切，读成"玻璃斜面"）
-  inkPoly(g, [
-    [-c.w * .36, -c.h * .40], [c.w * .36, -c.h * .40],
-    [c.w * .30, -c.h * .24], [-c.w * .30, -c.h * .24]
-  ], "rgba(28,38,50,.85)", 1);
-  inkPoly(g, [
-    [-c.w * .36, c.h * .27], [c.w * .36, c.h * .27],
-    [c.w * .32, c.h * .40], [-c.w * .32, c.h * .40]
-  ], "rgba(28,38,50,.8)", 1);
-  // 风挡上的玻璃反光：一条硬边亮线
-  g.fillStyle = "rgba(150,180,200,.30)";
-  g.fillRect(-c.w * .30, -c.h * .38, c.w * .40, 2);
-
-  // 侧窗
-  g.fillStyle = "rgba(28,38,50,.55)";
-  g.fillRect(-c.w * .47, -c.h * .18, 5, c.h * .36);
-  g.fillRect(c.w * .47 - 5, -c.h * .18, 5, c.h * .36);
-
-  // 引擎盖反光：硬边亮条
-  g.fillStyle = "rgba(255,255,255,.20)";
-  g.fillRect(-c.w * .34, -c.h * .49, c.w * .68, 4);
-
-  // 锈斑：几块不规则深色小多边形（"废弃"的证据）
-  g.fillStyle = "rgba(60,44,36,.40)";
-  for (let i = 0; i < 3; i++) {
-    const rx = srand(-hw * .7, hw * .7), ry = srand(-hh * .3, hh * .6);
-    inkPoly(g, [[rx, ry], [rx + 6, ry + 2], [rx + 4, ry + 7], [rx - 2, ry + 5]], "rgba(60,44,36,.40)", 0);
+  // 主旋翼：**十字四桨**，其中一根断成半截（战损）。
+  // 桨叶是细长长条 + 墨线，从机身中心的桨毂向外伸。
+  const hubY = -hh * .05, armLen = hw * 1.5;
+  g.fillStyle = "#23282a";
+  g.strokeStyle = INK; g.lineWidth = 1.2;
+  // 长桨（左右）
+  for (const s of [-1, 1]) {
+    plate(g, s > 0 ? 6 : -armLen, hubY - 2.4, armLen - 6, 4.8, 1, "#2f3630", 1.2);
   }
+  // 前桨（完整）+ 后桨（断成半截）
+  plate(g, -2.4, hubY - armLen * .8, 4.8, armLen * .8 - 6, 1, "#2f3630", 1.2);
+  plate(g, -2.4, hubY + 6, 4.8, armLen * .4, 1, "#2f3630", 1.2);   // 断桨：只有 40% 长
+  // 断桨的茬口：一小段斜切亮边
+  g.fillStyle = "#5a6358";
+  g.fillRect(-2.4, hubY + 6 + armLen * .4, 4.8, 2);
+  // 桨毂：中心多边形圆
+  polyBall(g, 0, hubY, 5, 5, 8, 0, D(.7), 1.6);
 
-  // 车轮：直边深色块
-  g.fillStyle = "#232830";
-  for (const sx of [-1, 1]) for (const sy of [-1, 1])
-    g.fillRect(sx * hw - (sx < 0 ? 0 : 4), sy * c.h * .30 - 9, 4, 18);
+  // 战损：机身中部一道裂痕 + 烧焦斑
+  g.strokeStyle = "rgba(20,22,18,.6)"; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(-hw * .3, hh * .05); g.lineTo(hw * .1, hh * .18); g.lineTo(hw * .3, hh * .05); g.stroke();
+  inkPoly(g, [[-hw * .2, hh * .12], [hw * .05, hh * .2], [0, hh * .3], [-hw * .25, hh * .24]],
+          "rgba(20,22,18,.5)", 0);
+  // 散落的一片旋翼残片（掉在机身旁边）
+  plate(g, hw * .7, hh * .4, 4, 14, 1, "#2f3630", 1.2);
 
   g.restore();
 }
@@ -2020,9 +2079,24 @@ function drawScene() {
    所以**形态负责"轮廓的厚度感"，颜色负责"档位识别"**，两者分工。
    真正的差别靠背包（形态 3 独有，在后排两侧露出）和头盔形状补足。 */
 const FORM = {
-  1: { w: 14, shoulder: 0,   helmet: "cap",    pack: false, armor: "#5c6b7a" },
-  2: { w: 15, shoulder: 1.2, helmet: "helmet", pack: false, armor: "#6f7d8c" },
-  3: { w: 16, shoulder: 2.4, helmet: "heavy",  pack: true,  armor: "#8b96a3" }
+  1: { w: 14, shoulder: 0,   helmet: "cap",    pack: false, armor: "#6b7a4a" },
+  2: { w: 15, shoulder: 1.2, helmet: "helmet", pack: false, armor: "#6b7a4a" },
+  3: { w: 16, shoulder: 2.4, helmet: "heavy",  pack: true,  armor: "#6b7a4a" }
+};
+/* Marco 固定配色（v0.27 · 不再整身随档位变色）。
+   用户要的是"合金弹头主角"：Marco 的辨识度来自**军绿背心 + 棕裤 +
+   肤色肌肉手臂 + 头巾 + 金发**，这套配色是固定的。
+   所以 team 色**只染头巾**（24 人方阵里唯一还高饱和的地方），
+   身体用下面这套固定色 —— 这才是"一个角色"，而不是"一块彩色装甲"。 */
+const MARCO = {
+  skin:   "#E0B080",   // 手臂/后颈肤色（暖，比背心亮）
+  skinD:  "#B98A5C",   // 肤色暗面
+  vest:   "#5f6e3e",   // 军绿背心（主色）
+  vestD:  "#3f4a28",   // 背心暗面
+  pants:  "#7a5a38",   // 棕裤
+  pantsD: "#553c22",   // 裤暗面
+  hair:   "#D8A24A",   // 金发（头巾边缘露出的一圈）
+  boots:  "#33291d"    // 军靴
 };
 
 /* 枪相对战士锚点的横向偏移。
@@ -2089,19 +2163,19 @@ function drawSoldier(px, py, form, color, opts) {
   for (const side of [-1, 1]) {
     const lx = px + side * w * .31;
     const ly = py + 3 + side * walk;
-    plate(ctx, lx - 3.6, ly - 5, 7.2, 12, 1.6, T(.38), 1.5);
-    // 暗面：右下一半硬切
+    // 棕裤（Marco 标志色之一）
+    plate(ctx, lx - 3.6, ly - 5, 7.2, 12, 1.6, MARCO.pants, 1.5);
     inkPoly(ctx, [[lx + .5, ly - 4], [lx + 3.3, ly - 4],
-                  [lx + 3.3, ly + 6], [lx + .5, ly + 6]], T(.24), 0);
-    // 膝：一道横切口
-    ctx.fillStyle = T(.74);
+                  [lx + 3.3, ly + 6], [lx + .5, ly + 6]], MARCO.pantsD, 0);
+    // 膝：一道横切口（裤色亮一档）
+    ctx.fillStyle = shade(MARCO.pants, 1.2);
     ctx.fillRect(lx - 3.2, ly + 1, 6.4, 2.6);
     ctx.strokeStyle = INK_A; ctx.lineWidth = 1;
     ctx.strokeRect(lx - 3.2, ly + 1, 6.4, 2.6);
-    // 靴：比腿更宽的切角块，收口在下方
+    // 军靴：比腿更宽的深色切角块
     inkPoly(ctx, [[lx - 3.9, ly + 6.2], [lx + 3.9, ly + 6.2],
-                  [lx + 3.5, ly + 12], [lx - 3.5, ly + 12]], T(.20), 1.5);
-    ctx.fillStyle = T(.36);
+                  [lx + 3.5, ly + 12], [lx - 3.5, ly + 12]], MARCO.boots, 1.5);
+    ctx.fillStyle = shade(MARCO.boots, 1.6);
     ctx.fillRect(lx - 3.4, ly + 7.4, 6.8, 1.3);      // 靴面一道亮缝
   }
 
@@ -2109,65 +2183,62 @@ function drawSoldier(px, py, form, color, opts) {
      v0.26：改成两层切角块 + 两侧弹链盒。背面视角下"背包"是从上方
      唯一能看到的装备，所以它必须撑出肩外 —— 那正是形态 3 的方肩。 */
   if (f.pack) {
-    plate(ctx, px - w * .70, py - 1, w * 1.40, 15, 3.4, T(.32), 1.8);
+    // 军用背包（形态 3）：军绿主体 + 棕色绑带 + 两侧弹药袋
+    plate(ctx, px - w * .70, py - 1, w * 1.40, 15, 3.4, MARCO.vestD, 1.8);
     inkPoly(ctx, [[px + .6, py], [px + w * .68, py], [px + w * .68, py + 13],
-                  [px + .6, py + 13]], T(.20), 0);
-    plate(ctx, px - w * .44, py + 2, w * .88, 5, 2, T(.58), 1.2);
-    // 弹链盒：两侧各一块小方盒，突出于背包外缘
+                  [px + .6, py + 13]], shade(MARCO.vestD, .7), 0);
+    plate(ctx, px - w * .44, py + 2, w * .88, 5, 2, MARCO.vest, 1.2);
     for (const s of [-1, 1]) {
       inkPoly(ctx, [[px + s * w * .58, py + 3], [px + s * w * .80, py + 3],
-                    [px + s * w * .80, py + 11], [px + s * w * .58, py + 11]], T(.46), 1.4);
+                    [px + s * w * .80, py + 11], [px + s * w * .58, py + 11]], MARCO.pants, 1.4);
     }
-    ctx.fillStyle = T(.98);
+    ctx.fillStyle = shade(MARCO.vest, 1.3);
     ctx.fillRect(px - w * .66, py + .4, w * 1.32, 1.4);   // 顶面高光
   }
 
-  /* ---- 防弹衣：改成**多面硬体**。
-     原来是一个梯形 + 一个内插板圆角矩形，读起来是"贴了一张卡片"。
-     现在拆成：深色包边 → 阵营色主体（左右两块，中间留暗缝当插板分界）
-     → 肩带 → 腰部快拆扣。分块之后才有"穿着护具"的体积。 */
+  /* ---- 军绿背心（Marco 主体）：多面硬体。
+     左右两块军绿 + 中间暗缝（背心前襟）+ 棕色肩带 + 腰带。
+     这是 Marco 的"上身"，配色固定，不随档位变。 */
   inkPoly(ctx, [
     [px - w * .70, py - 10], [px + w * .70, py - 10],
     [px + w * .54, py + 7.5], [px - w * .54, py + 7.5]
-  ], T(.26), 1.9);
+  ], MARCO.vestD, 1.9);
   inkPoly(ctx, [[px - w * .64, py - 9], [px - w * .03, py - 9],
-                [px - w * .03, py + 6], [px - w * .48, py + 6]], team, 0);
+                [px - w * .03, py + 6], [px - w * .48, py + 6]], MARCO.vest, 0);
   inkPoly(ctx, [[px + w * .03, py - 9], [px + w * .64, py - 9],
-                [px + w * .48, py + 6], [px + w * .03, py + 6]], T(.84), 0);
-  // 暗面：右半的下缘再压一档
+                [px + w * .48, py + 6], [px + w * .03, py + 6]], shade(MARCO.vest, .85), 0);
   inkPoly(ctx, [[px + w * .16, py + 1], [px + w * .60, py + 1],
-                [px + w * .47, py + 6], [px + w * .16, py + 6]], T(.58), 0);
-  // 插板分界缝
+                [px + w * .47, py + 6], [px + w * .16, py + 6]], MARCO.vestD, 0);
+  // 前襟分界缝
   ctx.fillStyle = INK_A;
   ctx.fillRect(px - 1.2, py - 9, 2.4, 15);
-  // 肩带：两条从肩部斜下来，是"背带"的唯一表达
-  ctx.strokeStyle = T(.22); ctx.lineWidth = 2.2;
+  // 棕色肩带：两条从肩部斜下来
+  ctx.strokeStyle = MARCO.pantsD; ctx.lineWidth = 2.2;
   for (const s of [-1, 1]) {
     ctx.beginPath();
     ctx.moveTo(px + s * w * .40, py - 9.6);
     ctx.lineTo(px + s * w * .18, py + 2);
     ctx.stroke();
   }
-  ctx.fillStyle = T(.98);
+  ctx.fillStyle = shade(MARCO.vest, 1.3);
   ctx.fillRect(px - w * .52, py - 8.4, w * .34, 1.6);       // 左上硬边高光
-  // 腰部快拆扣：一个方块 + 中间一道亮线
+  // 腰带：深色 + 黄铜扣
   inkPoly(ctx, [[px - w * .48, py + 3.4], [px + w * .48, py + 3.4],
-                [px + w * .48, py + 6.6], [px - w * .48, py + 6.6]], T(.20), 1.3);
-  ctx.fillStyle = T(.92);
+                [px + w * .48, py + 6.6], [px - w * .48, py + 6.6]], MARCO.boots, 1.3);
+  ctx.fillStyle = "#C9A24A";
   ctx.fillRect(px - 2.2, py + 3.8, 4.4, 2.6);
 
-  /* ---- 肩甲：外轮廓的方肩。切角块 + 上缘硬边高光。
-     形态的 shoulder 值决定外扩宽度 —— 24 人满编时外扩超过 3px
-     会让 6 列之间完全没有间隙（见 FORM 上方注释）。 */
+  /* ---- 肩部：Marco 是**肌肉手臂 + 卷起的袖子**，不是钢肩甲。
+     肩部画成肤色块（袖口的皮肤）+ 一道军绿卷边。 */
   for (const side of [-1, 1]) {
     const sw = 5.4 + f.shoulder;
     const sx = px + side * (w * .58 + f.shoulder * .35) - sw / 2;
     inkPoly(ctx, [[sx, py - 10.6], [sx + sw, py - 10.6],
-                  [sx + sw, py - 1.6], [sx, py - 1.6]], T(.88), 1.6);
+                  [sx + sw, py - 1.6], [sx, py - 1.6]], MARCO.skin, 1.6);
     inkPoly(ctx, [[sx + sw * .42, py - 9.6], [sx + sw, py - 9.6],
-                  [sx + sw, py - 2.6], [sx + sw * .42, py - 2.6]], T(.54), 0);
-    ctx.fillStyle = T(1.14);
-    ctx.fillRect(sx + .8, py - 10.2, Math.max(2, sw - 1.6), 1.5);
+                  [sx + sw, py - 2.6], [sx + sw * .42, py - 2.6]], MARCO.skinD, 0);
+    ctx.fillStyle = MARCO.vest;                  // 卷起的军绿袖口压在肩顶
+    ctx.fillRect(sx + .8, py - 10.2, Math.max(2, sw - 1.6), 1.8);
   }
 
   // 枪先画，头盔后画 —— 顺序反过来会变成"头顶插了一根棍子"。
@@ -2223,128 +2294,83 @@ function drawSoldier(px, py, form, color, opts) {
        高光是一条**硬边短横**（不是柔和的白雾）。 */
   const hy = py - 16;
   const hw = w * (f.helmet === "heavy" ? .50 : .44);
-  const hh = hw * 1.02;                      // 背面是"圆盖"，比正脸更扁
-  const SKIN_D = "#A98B6B";                  // 后颈肤色（压暗一档，不抢头盔）
-  const CAP_FILL = T(.66), CAP_DARK = T(.40), CAP_LIT = T(.96);
+  const hh = hw * 1.02;
+  const SKIN_D = MARCO.skinD;
+  /* 头巾用 team 色 —— 这是 24 人方阵里唯一还高饱和的地方。
+     Marco 的红头巾是他的签名；我们的战士用"档位数"当头巾色，
+     既保住 Marco 的辨识度，又保住 21 档的可读性。 */
+  const CAP_FILL = team, CAP_DARK = T(.55), CAP_LIT = T(1.10);
 
-  /* 一、后颈：一道压在肩线之上的深色皮肤，把头和肩接起来。
-     **这一段是背面视图的灵魂** —— 正脸视图里颈在下巴下方，背面视图里
-     颈在头的**下方偏后**，是唯一还看得见皮肤的解剖结构。 */
+  /* 一、后颈：一道压在肩线之上的肤色，把头和肩接起来。 */
   inkPoly(ctx, [
     [px - hw * .34, hy + hh * .22], [px + hw * .34, hy + hh * .22],
     [px + hw * .40, hy + hh * .76], [px - hw * .40, hy + hh * .76]
   ], SKIN_D, 1.5);
-  // 颈部的暗面：右下一半压一档（光在左上，和全场景一致）
   inkPoly(ctx, [
     [px + hw * .04, hy + hh * .30], [px + hw * .34, hy + hh * .30],
     [px + hw * .40, hy + hh * .70], [px + hw * .08, hy + hh * .70]
   ], shade(SKIN_D, 0.82), 0);
 
-  /* 二、头盔壳：**一个 8 边形**（不是椭圆）。
-     8 边形是"低多边形球"在 20px 下的读法 —— 它既圆又留得住直边，
-     正好是像素时代画"圆东西"的手法。ellipse 会立刻退回矢量感。 */
+  /* 二、金发：**先画一整个后脑**（比头巾略大的浅色块），
+     头巾再压上去只盖住上半。这样下缘自然露出一圈金发。
+     顺序很关键：金发在下、头巾在上，头巾**只盖头顶**，
+     不能像上一版那样把头巾壳下缘拉到金发同一高度 —— 那样金发全被盖住。 */
+  inkPoly(ctx, [
+    [px - hw * .60, hy - hh * .20], [px - hw * .40, hy - hh * .74],
+    [px, hy - hh * .92], [px + hw * .40, hy - hh * .74],
+    [px + hw * .60, hy - hh * .20], [px + hw * .56, hy + hh * .30],
+    [px + hw * .30, hy + hh * .52], [px - hw * .30, hy + hh * .52],
+    [px - hw * .56, hy + hh * .30]
+  ], MARCO.hair, 1.4);
+  // 发丝的暗缕：后脑下缘三道短竖划
+  ctx.strokeStyle = shade(MARCO.hair, .74); ctx.lineWidth = 1.2;
+  for (const s of [-1, 0, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(px + s * hw * .30, hy + hh * .22);
+    ctx.lineTo(px + s * hw * .30, hy + hh * .48);
+    ctx.stroke();
+  }
+
+  /* 三、头巾壳：**只包头顶**（下缘收到 hy+hh*.04，露出下半的金发）。
+     这是 Marco 和"戴头盔"的唯一分界：头盔会把整个后脑包死，
+     头巾只勒住额头以上，后脑的头发从头巾下缘挤出来。 */
   const HK = [
     [px - hw * .62, hy - hh * .26], [px - hw * .40, hy - hh * .78],
     [px  , hy - hh * .96], [px + hw * .40, hy - hh * .78],
-    [px + hw * .62, hy - hh * .26], [px + hw * .58, hy + hh * .26],
-    [px + hw * .26, hy + hh * .50], [px - hw * .26, hy + hh * .50],
-    [px - hw * .58, hy + hh * .26]
+    [px + hw * .62, hy - hh * .26], [px + hw * .56, hy + hh * .04],
+    [px + hw * .26, hy + hh * .12], [px - hw * .26, hy + hh * .12],
+    [px - hw * .56, hy + hh * .04]
   ];
   inkPoly(ctx, HK, CAP_FILL, 2.0);
 
-  /* 三、暗面：整个右下 1/4 压一档，**用多边形硬切**，不是径向渐变。
-     这一刀就是"光源在左上"的全部表达 —— 街机精灵没有渐变，只有两面。 */
+  /* 四、暗面：头巾右下 1/4 压一档（光在左上）。 */
   inkPoly(ctx, [
     [px + hw * .10, hy - hh * .86], [px + hw * .40, hy - hh * .74],
-    [px + hw * .60, hy - hh * .26], [px + hw * .56, hy + hh * .24],
-    [px + hw * .24, hy + hh * .48], [px + hw * .10, hy + hh * .30],
+    [px + hw * .60, hy - hh * .26], [px + hw * .54, hy + hh * .04],
     [px + hw * .16, hy - hh * .20]
   ], CAP_DARK, 0);
 
-  /* 四、高光：一条**硬边短横**压在左上前额。
-     街机的高光是"一块颜色"，不是"一层白雾" —— 所以它用 fillRect 而不是
-     半透明白渐变，边也必须是直的。 */
-  ctx.fillStyle = CAP_LIT;
-  ctx.fillRect(px - hw * .50, hy - hh * .56, hw * .44, 1.8);
-  ctx.fillRect(px - hw * .40, hy - hh * .70, hw * .20, 1.4);
-
-  /* 五、按形态叠装备。**从背后看，装备差异只有头盔这一处** ——
-     所以这里不做装饰性的堆叠，只改壳的高矮与附件。 */
-  if (f.helmet === "cap") {
-    /* 轻装：软布帽。特征 = **低 + 一圈后檐 + 帽顶一道缝**。
-       布帽的后檐是它和钢盔的第一区分点（钢盔后脑是一整块硬壳）。 */
-    ctx.fillStyle = CAP_DARK;
-    ctx.fillRect(px - hw * .60, hy + hh * .16, hw * 1.20, hh * .20);
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
-    ctx.strokeRect(px - hw * .60, hy + hh * .16, hw * 1.20, hh * .20);
-    // 帽顶缝线：一条从后到前的深色短划 —— "这是布，不是铁"
-    ctx.strokeStyle = INK_A; ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(px, hy - hh * .92); ctx.lineTo(px, hy - hh * .34);
-    ctx.stroke();
-  } else if (f.helmet === "helmet") {
-    /* 战术：钢盔。特征 = **高 + 后脑一圈护带 + 两侧铆钉**。
-       护带是"硬壳"的签名：它必须是**独立一条**横带，而不是壳的延伸。 */
-    inkPoly(ctx, [
-      [px - hw * .68, hy - hh * .10], [px - hw * .44, hy - hh * .58],
-      [px, hy - hh * .74], [px + hw * .44, hy - hh * .58],
-      [px + hw * .68, hy - hh * .10]
-    ], CAP_LIT, 1.6);
-    ctx.fillStyle = T(.30);
-    ctx.fillRect(px - hw * .64, hy + hh * .04, hw * 1.28, hh * .26);
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
-    ctx.strokeRect(px - hw * .64, hy + hh * .04, hw * 1.28, hh * .26);
-    // 铆钉：两个小方块。圆形铆钉在这个尺寸会读成"眼睛"—— 方块不会。
-    ctx.fillStyle = T(.24);
-    for (const s of [-1, 1]) {
-      const rx = px + s * hw * .66;
-      const ry = hy - hh * .08;
-      inkPoly(ctx, [[rx - 1.6, ry - 1.6], [rx + 1.6, ry - 1.6],
-                    [rx + 1.6, ry + 1.6], [rx - 1.6, ry + 1.6]], T(.24), 1.2);
-    }
-  } else {
-    /* 重装：全罩。特征 = **最高 + 后颈护板 + 颈侧呼吸管**。
-       呼吸管从颈侧甩出去，是这一档在 24 人方阵里唯一的远距离识别点。 */
-    inkPoly(ctx, [
-      [px - hw * .70, hy - hh * .34], [px - hw * .46, hy - hh * .86],
-      [px, hy - hh * 1.06], [px + hw * .46, hy - hh * .86],
-      [px + hw * .70, hy - hh * .34]
-    ], T(.50), 1.8);
-    // 后颈护板：一块斜切的方板压在头盔下缘，读成"罩住了后脑"
-    inkPoly(ctx, [
-      [px - hw * .56, hy + hh * .14], [px + hw * .56, hy + hh * .14],
-      [px + hw * .46, hy + hh * .56], [px - hw * .46, hy + hh * .56]
-    ], T(.22), 1.6);
-    // 颈侧呼吸管：一根短管 + 末端方口（方块收口，不是圆口）
-    ctx.strokeStyle = INK; ctx.lineWidth = 3.2;
-    ctx.beginPath();
-    ctx.moveTo(px - hw * .58, hy + hh * .30);
-    ctx.lineTo(px - hw * .94, hy + hh * .14);
-    ctx.stroke();
-    ctx.strokeStyle = T(.18); ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(px - hw * .58, hy + hh * .30);
-    ctx.lineTo(px - hw * .94, hy + hh * .14);
-    ctx.stroke();
-    ctx.fillStyle = T(.14);
-    ctx.fillRect(px - hw * 1.12, hy + hh * .02, hw * .24, hh * .20);
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
-    ctx.strokeRect(px - hw * 1.12, hy + hh * .02, hw * .24, hh * .20);
-  }
-
-  /* 六、后脑耳机：三种形态都有，因为"耳机"是背面视角下唯一的
-     现代装备信号，并且它出现在**头侧**而不是脸上，不破坏透视。
-     两侧各一块小方块 + 一条向外甩的短杆（天线）。 */
+  /* 五、头巾的结：在**头巾下缘、金发上沿**打结 + 两条向后（+y）飘的尾带。
+     结压在金发的上沿，正是"布勒住头发"的位置。 */
+  inkPoly(ctx, [[px - 2.4, hy + hh * .06], [px + 2.4, hy + hh * .06],
+                [px + 2.4, hy + hh * .30], [px - 2.4, hy + hh * .30]], CAP_DARK, 1.2);
   for (const s of [-1, 1]) {
-    const ex = px + s * hw * .62;
-    inkPoly(ctx, [[ex - 2.2, hy - hh * .22], [ex + 2.2, hy - hh * .22],
-                  [ex + 2.2, hy + hh * .16], [ex - 2.2, hy + hh * .16]], T(.26), 1.3);
+    inkPoly(ctx, [
+      [px + s * 1.4, hy + hh * .22], [px + s * 3.8, hy + hh * .50],
+      [px + s * 3.0, hy + hh * .72], [px + s * .4, hy + hh * .42]
+    ], CAP_FILL, 1.2);
   }
-  ctx.strokeStyle = INK_A; ctx.lineWidth = 1.1;
-  ctx.beginPath();
-  ctx.moveTo(px + hw * .62, hy - hh * .16);
-  ctx.lineTo(px + hw * .92, hy - hh * .34);
-  ctx.stroke();
+
+  /* 六、高光：左上前额一条**短**硬边（不要洗白整片头巾）。 */
+  ctx.fillStyle = CAP_LIT;
+  ctx.fillRect(px - hw * .48, hy - hh * .58, hw * .34, 1.6);
+
+  /* 七、**头上什么都不加。** Marco 的头 = 头巾 + 金发，没有风镜、没有耳机、
+     没有钢盔。之前每一版都在头顶堆"装备"，结果风镜带 + 耳机连成一条
+     横贯头中部的黑杠，把金发压住、读成"戴墨镜的机器人" —— 这是用户
+     连续两轮说"还是丑"的直接原因。
+     三种形态的差异**全部移到身体上**（背包 / 肩宽 / 武器），
+     头部三形态共用同一个"头巾 + 金发"，就像合金弹头里 Marco 永远是 Marco。 */
 
   ctx.restore();
 }
@@ -2353,7 +2379,6 @@ function drawSoldier(px, py, form, color, opts) {
    v0.26 街机化：手臂不再是 roundRect 的圆角柱，而是**切角块 + 墨线 + 两值色阶**。
    街机角色的四肢永远是"两节硬块"，因为精灵在 16px 宽的手臂上画不出圆角过渡。 */
 function drawArms(px, py, w, team) {
-  const T = (x) => shade(team, x);
   ctx.save();
   for (const side of [-1, 1]) {
     /* **右手（side=+1）要跟着枪走**：枪移到 px+15 之后，手还停在
@@ -2364,17 +2389,17 @@ function drawArms(px, py, w, team) {
     ctx.save();
     ctx.translate(px + (side > 0 ? grip : -grip), py + 1);
     ctx.rotate(side * .18);
-    // 上臂 / 前臂：一块切角块，暗面硬切右半
-    plate(ctx, -3.8, -8, 7.6, 16, 2, T(.58), 1.7);
-    inkPoly(ctx, [[.4, -7], [3.1, -7], [3.1, 7], [.4, 7]], T(.34), 0);
-    // 臂环（肘）：一道亮横带 —— 街机的关节永远是"一条亮带"，不是渐变
-    ctx.fillStyle = T(.94);
+    // 肌肉手臂：Marco 是裸臂，肤色 + 暗面（不是阵营色袖管）
+    plate(ctx, -3.8, -8, 7.6, 16, 2, MARCO.skin, 1.7);
+    inkPoly(ctx, [[.4, -7], [3.1, -7], [3.1, 7], [.4, 7]], MARCO.skinD, 0);
+    // 肘：一道亮横带
+    ctx.fillStyle = shade(MARCO.skin, 1.12);
     ctx.fillRect(-3.2, -.6, 6.4, 2.6);
     ctx.strokeStyle = INK_A; ctx.lineWidth = 1;
     ctx.strokeRect(-3.2, -.6, 6.4, 2.6);
-    // 露出的握枪手：切角块 + 一条指缝暗线
-    inkPoly(ctx, [[-3, -10], [3, -10], [3, -5.4], [-3, -5.4]], "#C5B08C", 1.5);
-    inkPoly(ctx, [[.5, -9.4], [2.8, -9.4], [2.8, -5.8], [.5, -5.8]], "#9E8A68", 0);
+    // 握枪手：肤色 + 指缝暗线
+    inkPoly(ctx, [[-3, -10], [3, -10], [3, -5.4], [-3, -5.4]], MARCO.skin, 1.5);
+    inkPoly(ctx, [[.5, -9.4], [2.8, -9.4], [2.8, -5.8], [.5, -5.8]], MARCO.skinD, 0);
     ctx.restore();
   }
   ctx.restore();
